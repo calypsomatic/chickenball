@@ -50,6 +50,13 @@ class BounceSprite(pygame.sprite.Sprite):
         if y > display_height:
             self.kill()
 
+    def update(self):
+        self.move()
+
+    def reverse_v(self):
+        vx, vy = self.v
+        self.v = [-vx, -vy]
+
 class Sprite(pygame.sprite.Sprite):
     def __init__(self, pos, imagefile):
         pygame.sprite.Sprite.__init__(self)
@@ -89,11 +96,19 @@ class Sprite(pygame.sprite.Sprite):
         self.v = [dx,dy]
         self.move()
 
+##class WallSprite(pygame.sprite.Sprite):
+##    def __init__(self, pos, color):
+##        pygame.sprite.Sprite.__init__(self)
+##        self.image = pygame.Surface((size*2, size*2), pygame.SRCALPHA)
+##        pygame.draw.rect(self.image, (255, 0, 0), (size,size), size)
+##        self.rect = pygame.Rect(*gameDisplay.get_rect().center, 0,0).inflate(size, size)
+##        self.rect.center = pos
+##        self.rect.center = pos
+##        self.v = [0,0]
+
 
 ##def item(img, x,y):
 ##    gameDisplay.blit(img, (x,y))
-
-
 
 
 x = int(display_width * 0.45)
@@ -102,7 +117,7 @@ dx = -1
 dy = -1
 
 chickensprite = Sprite((x,y),'chicken2.png')
-bouncesprite = BounceSprite((x+10, y+20), 10)
+##bouncesprite = BounceSprite((x+10, y+20), 10)
 
 crashed = False
 buttondown = False
@@ -111,7 +126,12 @@ sprite_group = pygame.sprite.Group()
 sprite_group.add(chickensprite)
 
 bounce_group = pygame.sprite.Group()
-bounce_group.add(bouncesprite)
+
+
+def shootBall(x, y):
+    ball = BounceSprite((display_width//2, display_height), 10)
+    ball.aim_at_click(mousex, mousey)
+    bounce_group.add(ball)
 
 
 while not crashed:
@@ -121,7 +141,7 @@ while not crashed:
         if event.type == pygame.MOUSEBUTTONDOWN:
             buttondown = True
             mousex, mousey = pygame.mouse.get_pos()
-            bouncesprite.aim_at_click(mousex, mousey)
+            shootBall(mousex, mousey)
         if event.type == pygame.MOUSEBUTTONUP:
             buttondown = False
 
@@ -131,7 +151,11 @@ while not crashed:
     else:
         chickensprite.move()
             
-    bouncesprite.move()
+    bounce_group.update()
+
+    collide = pygame.sprite.spritecollide(chickensprite, bounce_group, False)
+    for ball in collide:
+        ball.reverse_v()
 
     gameDisplay.fill(blue)
     sprite_group.draw(gameDisplay)
