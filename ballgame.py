@@ -136,12 +136,11 @@ class HorizontalWallSprite(pygame.sprite.Sprite):
         self.rect.topleft = pos
 
 
-x = int(display_width * 0.05)
-y = int(display_height * 0.1)
+chicken_pos = (int(display_width * 0.2), int(display_height * 0.2))
 dx = -1
 dy = -1
 
-chickensprite = Sprite((x,y),'chicken2.png')
+chickensprite = Sprite(chicken_pos,'chicken2.png')
 ##bouncesprite = BounceSprite((x+10, y+20), 10)
 
 crashed = False
