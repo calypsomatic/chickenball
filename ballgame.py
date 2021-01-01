@@ -193,17 +193,17 @@ while not crashed:
         ball.flee(chickensprite.pos())
 
     leftwallcollide = pygame.sprite.spritecollide(leftwall, bounce_group, False)
-    for sprite in collide:
+    for sprite in leftwallcollide:
         print(type(sprite))
         sprite.reverse_x()
     
     topwallcollide = pygame.sprite.spritecollide(topwall, bounce_group, False)
-    for sprite in collide:
+    for sprite in topwallcollide:
         print(type(sprite))
         sprite.reverse_y()
         
     rightwallcollide = pygame.sprite.spritecollide(rightwall, bounce_group, False)
-    for sprite in collide:
+    for sprite in rightwallcollide:
         print(type(sprite))
         sprite.reverse_x()
         
