@@ -23,6 +23,7 @@ class BounceSprite(pygame.sprite.Sprite):
         self.rect = pygame.Rect(*gameDisplay.get_rect().center, 0,0).inflate(size, size)
         self.rect.center = pos
         self.v = [-1,-1]
+        self.live = True
 
     def set_pos(self, x, y):
         self.rect.centerx = x
@@ -49,13 +50,14 @@ class BounceSprite(pygame.sprite.Sprite):
         self.set_pos(x + dx, y + dy)
         if y > display_height:
             self.kill()
+            self.live = False
 
     def update(self):
         self.move()
 
     def reverse_v(self):
         vx, vy = self.v
-        self.v = [-vx, -vy]
+        self.v = [-vx, -vy] 
 
     def flee(self, pos):
         x,y = pos
@@ -72,13 +74,16 @@ class BounceSprite(pygame.sprite.Sprite):
         vx, vy = self.v
         self.v = [vx, -vy]
 
+
 class Sprite(pygame.sprite.Sprite):
-    def __init__(self, pos, imagefile):
+    def __init__(self, pos, imagefile, hp):
         pygame.sprite.Sprite.__init__(self)
         self.image = pygame.image.load(imagefile)
         self.rect = self.image.get_rect()
         self.rect.center = pos
         self.v = [0,0]
+        self.hp = hp
+        self.live = True
 
     def set_pos(self, x, y):
         self.rect.centerx = x
@@ -119,6 +124,12 @@ class Sprite(pygame.sprite.Sprite):
         vx, vy = self.v
         self.v = [vx, -vy]
 
+    def take_hit(self, hit):
+        self.hp = self.hp - hit
+        if self.hp <= 0:
+            self.kill()
+            self.live = False
+
 class VerticalWallSprite(pygame.sprite.Sprite):
     def __init__(self, height, pos, color=BLACK):
         pygame.sprite.Sprite.__init__(self)
@@ -140,7 +151,7 @@ chicken_pos = (int(display_width * 0.2), int(display_height * 0.2))
 dx = -1
 dy = -1
 
-chickensprite = Sprite(chicken_pos,'chicken2.png')
+chickensprite = Sprite(chicken_pos,'chicken2.png', 10)
 ##bouncesprite = BounceSprite((x+10, y+20), 10)
 
 crashed = False
@@ -170,7 +181,9 @@ wall_group.add(leftwall)
 wall_group.add(topwall)
 wall_group.add(rightwall)
 
+i=0
 while not crashed:
+    i += 1
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             crashed = True
@@ -187,30 +200,38 @@ while not crashed:
     else:
         chickensprite.move()
 
-    collide = pygame.sprite.spritecollide(chickensprite, ball_group, False)
-    for ball in collide:
+    ballchickencollide = pygame.sprite.spritecollide(chickensprite, ball_group, False)
+    for ball in ballchickencollide:
         ball.flee(chickensprite.pos())
+        chickensprite.take_hit(1)
+    if i % 100 == 0:
+        breakpoint()
 
     leftwallcollide = pygame.sprite.spritecollide(leftwall, bounce_group, False)
     for sprite in leftwallcollide:
-        print(type(sprite))
         sprite.reverse_x()
     
     topwallcollide = pygame.sprite.spritecollide(topwall, bounce_group, False)
     for sprite in topwallcollide:
-        print(type(sprite))
         sprite.reverse_y()
         
     rightwallcollide = pygame.sprite.spritecollide(rightwall, bounce_group, False)
     for sprite in rightwallcollide:
-        print(type(sprite))
         sprite.reverse_x()
         
 
-    gameDisplay.fill(blue)
+
+    
     bounce_group.update()
     ball_group.update()
-##    sprite_group.draw(gameDisplay)
+##    print(chickensprite.live)
+    for sprite in sprite_group:
+        if not sprite.live:
+            print(sprite, " is not alive")
+            del sprite
+##    bounce_group.clear(gameDisplay, pygame.Surface(chickensprite.rect.size))
+
+    gameDisplay.fill(blue)
     bounce_group.draw(gameDisplay)
     wall_group.draw(gameDisplay)
     
