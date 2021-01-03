@@ -1,3 +1,5 @@
+#! /usr/bin/python3.7
+
 import pygame
 
 pygame.init()
@@ -16,13 +18,14 @@ clock = pygame.time.Clock()
 
 
 class BounceSprite(pygame.sprite.Sprite):
-    def __init__(self, pos, size):
+    def __init__(self, pos, radius):
         pygame.sprite.Sprite.__init__(self)
-        self.image = pygame.Surface((size*2, size*2), pygame.SRCALPHA)
-        pygame.draw.circle(self.image, (255, 0, 0), (size,size), size)
-        self.rect = pygame.Rect(*gameDisplay.get_rect().center, 0,0).inflate(size, size)
+        self.image = pygame.Surface((radius*2, radius*2), pygame.SRCALPHA)
+        pygame.draw.circle(self.image, (255, 0, 0), (radius,radius), radius)
+        self.rect = pygame.Rect(*gameDisplay.get_rect().center, 0,0).inflate(radius*2, radius*2)
         self.rect.center = pos
         self.v = [-1,-1]
+        self.speed = 10
         self.live = True
 
     def set_pos(self, x, y):
@@ -37,7 +40,7 @@ class BounceSprite(pygame.sprite.Sprite):
         dx = x - self.rect.centerx
         dy = y - self.rect.centery
         norm = (dx**2 + dy**2)**.5
-        self.v = [int(10*dx/norm), int(10*dy/norm)]
+        self.v = [int(self.speed*dx/norm), int(self.speed*dy/norm)]
 
     def move(self):
         dx, dy = self.v
@@ -64,7 +67,7 @@ class BounceSprite(pygame.sprite.Sprite):
         dx = x - self.rect.centerx
         dy = y - self.rect.centery
         norm = (dx**2 + dy**2)**.5
-        self.v = [-int(10*dx/norm), -int(10*dy/norm)]
+        self.v = [-int(self.speed*dx/norm), -int(self.speed*dy/norm)]
 
     def reverse_x(self):
         vx, vy = self.v
@@ -82,6 +85,7 @@ class Sprite(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.center = pos
         self.v = [0,0]
+        self.speed = 5
         self.hp = hp
         self.live = True
 
@@ -102,18 +106,17 @@ class Sprite(pygame.sprite.Sprite):
         self.v = [dx, dy]
         self.set_pos(x + dx, y + dy)
 
+
+    def aim(self, pos):
+        x, y = pos
+        dx = x - self.rect.centerx
+        dy = y - self.rect.centery
+        norm = (dx**2 + dy**2)**.5
+        self.v = [int(self.speed*dx/norm), int(self.speed*dy/norm)]
+
+        
     def moveToCursor(self):
-        mousex, mousey = pygame.mouse.get_pos()
-        x,y = self.pos()
-        if x < mousex:
-            dx = 1
-        else:
-            dx = -1
-        if y < mousey:
-            dy = 1
-        else:
-            dy = -1
-        self.v = [dx,dy]
+        self.aim(pygame.mouse.get_pos())        
         self.move()
 
     def reverse_x(self):
@@ -147,30 +150,33 @@ class HorizontalWallSprite(pygame.sprite.Sprite):
         self.rect.topleft = pos
 
 
-chicken_pos = (int(display_width * 0.2), int(display_height * 0.2))
+chicken_pos = (int(display_width * 0.5), int(display_height * 0.5))
 dx = -1
 dy = -1
 
 chickensprite = Sprite(chicken_pos,'chicken2.png', 10)
-##bouncesprite = BounceSprite((x+10, y+20), 10)
 
 crashed = False
 buttondown = False
 
 sprite_group = pygame.sprite.Group()
-sprite_group.add(chickensprite)
 
 bounce_group = pygame.sprite.Group()
-bounce_group.add(chickensprite)
 
 ball_group = pygame.sprite.Group()
 
+target_group = pygame.sprite.Group()
+
+sprite_group.add(chickensprite)
+bounce_group.add(chickensprite)
+target_group.add(chickensprite)
 
 def shootBall(x, y):
-    ball = BounceSprite((display_width//2, display_height), 10)
+    ball = BounceSprite((display_width//2, display_height), 5)
     ball.aim((mousex, mousey))
     bounce_group.add(ball)
     ball_group.add(ball)
+    sprite_group.add(ball)
 
 leftwall = VerticalWallSprite(display_height, (0,0))
 topwall = HorizontalWallSprite(display_width, (0,0))
@@ -193,23 +199,33 @@ while not crashed:
             shootBall(mousex, mousey)
         if event.type == pygame.MOUSEBUTTONUP:
             buttondown = False
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_c:
+                chickensprite = Sprite(chicken_pos,'chicken2.png', 10)
+                sprite_group.add(chickensprite)
+                bounce_group.add(chickensprite)
+                target_group.add(chickensprite)
 
 
     if buttondown:
-        chickensprite.moveToCursor()
+        for sprite in target_group:
+            sprite.moveToCursor()
     else:
-        chickensprite.move()
+        for sprite in target_group:
+            sprite.move()
 
-    ballchickencollide = pygame.sprite.spritecollide(chickensprite, ball_group, False)
-    for ball in ballchickencollide:
-        ball.flee(chickensprite.pos())
-        chickensprite.take_hit(1)
-    if i % 100 == 0:
-        breakpoint()
+    ballchickencollide = pygame.sprite.groupcollide(target_group, ball_group, False, False)
+    for target, balls in ballchickencollide.items():
+        for ball in balls:
+            ball.flee(target.pos())
+            target.take_hit(1)
+##    if i % 100 == 0:
+##        breakpoint()
 
     leftwallcollide = pygame.sprite.spritecollide(leftwall, bounce_group, False)
     for sprite in leftwallcollide:
         sprite.reverse_x()
+        #breakpoint()
     
     topwallcollide = pygame.sprite.spritecollide(topwall, bounce_group, False)
     for sprite in topwallcollide:
@@ -218,13 +234,12 @@ while not crashed:
     rightwallcollide = pygame.sprite.spritecollide(rightwall, bounce_group, False)
     for sprite in rightwallcollide:
         sprite.reverse_x()
+        #breakpoint()
         
 
 
     
-    bounce_group.update()
-    ball_group.update()
-##    print(chickensprite.live)
+    sprite_group.update()
     for sprite in sprite_group:
         if not sprite.live:
             print(sprite, " is not alive")
@@ -236,7 +251,7 @@ while not crashed:
     wall_group.draw(gameDisplay)
     
     pygame.display.update()
-    clock.tick(20)
+    clock.tick(30)
 
 pygame.quit()
 quit()
