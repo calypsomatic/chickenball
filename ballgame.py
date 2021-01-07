@@ -1,6 +1,7 @@
 #! /usr/bin/python3.7
 
 import pygame
+import random
 
 pygame.init()
 
@@ -11,6 +12,8 @@ green = pygame.Color(0,255,0)
 BLACK = pygame.Color(0,0,0)
 white = pygame.Color(255,255,255)
 blue = pygame.Color(0,0,255)
+PHASE = "AIMING"
+BALL_LIMIT = 20
 
 gameDisplay = pygame.display.set_mode((display_width,display_height))
 pygame.display.set_caption("Chicken Ball Game")
@@ -133,6 +136,8 @@ class Sprite(pygame.sprite.Sprite):
             self.kill()
             self.live = False
 
+
+
 class VerticalWallSprite(pygame.sprite.Sprite):
     def __init__(self, height, pos, color=BLACK):
         pygame.sprite.Sprite.__init__(self)
@@ -173,7 +178,7 @@ target_group.add(chickensprite)
 
 def shootBall(x, y):
     ball = BounceSprite((display_width//2, display_height), 5)
-    ball.aim((mousex, mousey))
+    ball.aim((x, y))
     bounce_group.add(ball)
     ball_group.add(ball)
     sprite_group.add(ball)
@@ -186,33 +191,41 @@ wall_group = pygame.sprite.Group()
 wall_group.add(leftwall)
 wall_group.add(topwall)
 wall_group.add(rightwall)
-
+pygame.mouse.set_cursor(*pygame.cursors.diamond)
 i=0
+
+def drawTrackingLine(from_x):
+    mousex, mousey = pygame.mouse.get_pos()
+    pygame.draw.line(gameDisplay,BLACK, (from_x, display_height), (mousex, mousey))
+
 while not crashed:
     i += 1
+    fire = False
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             crashed = True
         if event.type == pygame.MOUSEBUTTONDOWN:
             buttondown = True
-            mousex, mousey = pygame.mouse.get_pos()
-            shootBall(mousex, mousey)
+##            mousex, mousey = pygame.mouse.get_pos()
+            
         if event.type == pygame.MOUSEBUTTONUP:
             buttondown = False
+            fire = True
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_c:
+                chicken_pos = int(100+random.random()*display_width//2), int(100+random.random()*display_height//2)
                 chickensprite = Sprite(chicken_pos,'chicken2.png', 10)
                 sprite_group.add(chickensprite)
                 bounce_group.add(chickensprite)
                 target_group.add(chickensprite)
 
 
-    if buttondown:
-        for sprite in target_group:
-            sprite.moveToCursor()
-    else:
-        for sprite in target_group:
-            sprite.move()
+##    if buttondown:
+##        for sprite in target_group:
+##            sprite.moveToCursor()
+##    else:
+##        for sprite in target_group:
+##            sprite.move()
 
     ballchickencollide = pygame.sprite.groupcollide(target_group, ball_group, False, False)
     for target, balls in ballchickencollide.items():
@@ -244,9 +257,20 @@ while not crashed:
         if not sprite.live:
             print(sprite, " is not alive")
             del sprite
-##    bounce_group.clear(gameDisplay, pygame.Surface(chickensprite.rect.size))
 
     gameDisplay.fill(blue)
+    if PHASE == 'AIMING' and buttondown:
+        drawTrackingLine(display_width//2)
+    elif PHASE == 'AIMING' and fire:
+        PHASE = 'SHOOTING'
+        remainingBalls = BALL_LIMIT
+        aim_pos = pygame.mouse.get_pos()
+    if PHASE == 'SHOOTING' and remainingBalls > 0:
+        shootBall(*aim_pos)
+        remainingBalls -= 1
+    elif PHASE == 'SHOOTING':
+        PHASE = 'AIMING'
+        
     bounce_group.draw(gameDisplay)
     wall_group.draw(gameDisplay)
     
