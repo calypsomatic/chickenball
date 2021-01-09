@@ -13,7 +13,8 @@ BLACK = pygame.Color(0,0,0)
 white = pygame.Color(255,255,255)
 blue = pygame.Color(0,0,255)
 PHASE = "AIMING"
-BALL_LIMIT = 20
+BALL_LIMIT = 60
+CHICKEN_IMAGE = 'chicksmall.png'
 
 gameDisplay = pygame.display.set_mode((display_width,display_height))
 pygame.display.set_caption("Chicken Ball Game")
@@ -159,7 +160,7 @@ chicken_pos = (int(display_width * 0.5), int(display_height * 0.5))
 dx = -1
 dy = -1
 
-chickensprite = Sprite(chicken_pos,'chicken2.png', 10)
+chickensprite = Sprite(chicken_pos,CHICKEN_IMAGE, 10)
 
 crashed = False
 buttondown = False
@@ -214,7 +215,7 @@ while not crashed:
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_c:
                 chicken_pos = int(100+random.random()*display_width//2), int(100+random.random()*display_height//2)
-                chickensprite = Sprite(chicken_pos,'chicken2.png', 10)
+                chickensprite = Sprite(chicken_pos,CHICKEN_IMAGE, 100)
                 sprite_group.add(chickensprite)
                 bounce_group.add(chickensprite)
                 target_group.add(chickensprite)
