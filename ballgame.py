@@ -15,6 +15,7 @@ blue = pygame.Color(0,0,255)
 PHASE = "AIMING"
 BALL_LIMIT = 60
 CHICKEN_IMAGE = 'chicksmall.png'
+CHICKEN_HP = 50
 
 gameDisplay = pygame.display.set_mode((display_width,display_height))
 pygame.display.set_caption("Chicken Ball Game")
@@ -28,6 +29,7 @@ class BounceSprite(pygame.sprite.Sprite):
         pygame.draw.circle(self.image, (255, 0, 0), (radius,radius), radius)
         self.rect = pygame.Rect(*gameDisplay.get_rect().center, 0,0).inflate(radius*2, radius*2)
         self.rect.center = pos
+        self.x, self.y = pos
         self.v = [-1,-1]
         self.speed = 10
         self.live = True
@@ -39,23 +41,19 @@ class BounceSprite(pygame.sprite.Sprite):
     def pos(self):
         return self.rect.centerx, self.rect.centery
 
-    def aim(self, pos):
-        x, y = pos
+    def aim(self, xy):
+        x,y = xy
         dx = x - self.rect.centerx
         dy = y - self.rect.centery
         norm = (dx**2 + dy**2)**.5
-        self.v = [int(self.speed*dx/norm), int(self.speed*dy/norm)]
+        self.v = [self.speed*dx/norm, self.speed*dy/norm]
 
     def move(self):
         dx, dy = self.v
-        x, y = self.pos()
-        if x + dx < 0 or x + dx >= display_width:
-            dx = -dx
-        if y + dy < 0:
-            dy = -dy
-        self.v = [dx, dy]
-        self.set_pos(x + dx, y + dy)
-        if y > display_height:
+        self.x += dx
+        self.y += dy        
+        self.set_pos(int(self.x), int(self.y))
+        if self.y > display_height:
             self.kill()
             self.live = False
 
@@ -67,11 +65,8 @@ class BounceSprite(pygame.sprite.Sprite):
         self.v = [-vx, -vy] 
 
     def flee(self, pos):
-        x,y = pos
-        dx = x - self.rect.centerx
-        dy = y - self.rect.centery
-        norm = (dx**2 + dy**2)**.5
-        self.v = [-int(self.speed*dx/norm), -int(self.speed*dy/norm)]
+        self.aim(pos)
+        self.reverse_v()
 
     def reverse_x(self):
         vx, vy = self.v
@@ -160,7 +155,7 @@ chicken_pos = (int(display_width * 0.5), int(display_height * 0.5))
 dx = -1
 dy = -1
 
-chickensprite = Sprite(chicken_pos,CHICKEN_IMAGE, 10)
+chickensprite = Sprite(chicken_pos,CHICKEN_IMAGE, CHICKEN_HP)
 
 crashed = False
 buttondown = False
@@ -215,7 +210,7 @@ while not crashed:
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_c:
                 chicken_pos = int(100+random.random()*display_width//2), int(100+random.random()*display_height//2)
-                chickensprite = Sprite(chicken_pos,CHICKEN_IMAGE, 100)
+                chickensprite = Sprite(chicken_pos,CHICKEN_IMAGE, CHICKEN_HP)
                 sprite_group.add(chickensprite)
                 bounce_group.add(chickensprite)
                 target_group.add(chickensprite)
@@ -276,7 +271,7 @@ while not crashed:
     wall_group.draw(gameDisplay)
     
     pygame.display.update()
-    clock.tick(30)
+    clock.tick(60)
 
 pygame.quit()
 quit()
