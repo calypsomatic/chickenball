@@ -13,7 +13,7 @@ BLACK = pygame.Color(0,0,0)
 white = pygame.Color(255,255,255)
 blue = pygame.Color(0,0,255)
 PHASE = "AIMING"
-BALL_LIMIT = 60
+BALL_LIMIT = 30
 CHICKEN_IMAGE = 'chicksmall.png'
 CHICKEN_HP = 50
 
@@ -31,7 +31,7 @@ class BounceSprite(pygame.sprite.Sprite):
         self.rect.center = pos
         self.x, self.y = pos
         self.v = [-1,-1]
-        self.speed = 10
+        self.speed = 3
         self.live = True
 
     def set_pos(self, x, y):
@@ -75,6 +75,16 @@ class BounceSprite(pygame.sprite.Sprite):
     def reverse_y(self):
         vx, vy = self.v
         self.v = [vx, -vy]
+
+    def bounce(self, target_rect):
+        top = target_rect.top
+        left = target_rect.left
+        right = target_rect.right
+        bottom = target_rect.bottom
+        if top < self.y < bottom:
+            self.reverse_x()
+        if left < self.x < right:
+            self.reverse_y()
 
 
 class Sprite(pygame.sprite.Sprite):
@@ -216,17 +226,11 @@ while not crashed:
                 target_group.add(chickensprite)
 
 
-##    if buttondown:
-##        for sprite in target_group:
-##            sprite.moveToCursor()
-##    else:
-##        for sprite in target_group:
-##            sprite.move()
-
     ballchickencollide = pygame.sprite.groupcollide(target_group, ball_group, False, False)
     for target, balls in ballchickencollide.items():
         for ball in balls:
-            ball.flee(target.pos())
+##            ball.flee(target.pos())
+            ball.bounce(target.rect)
             target.take_hit(1)
 ##    if i % 100 == 0:
 ##        breakpoint()
@@ -251,7 +255,6 @@ while not crashed:
     sprite_group.update()
     for sprite in sprite_group:
         if not sprite.live:
-            print(sprite, " is not alive")
             del sprite
 
     gameDisplay.fill(blue)
@@ -262,8 +265,9 @@ while not crashed:
         remainingBalls = BALL_LIMIT
         aim_pos = pygame.mouse.get_pos()
     if PHASE == 'SHOOTING' and remainingBalls > 0:
-        shootBall(*aim_pos)
-        remainingBalls -= 1
+        if i % 5 == 0:
+            shootBall(*aim_pos)
+            remainingBalls -= 1
     elif PHASE == 'SHOOTING':
         PHASE = 'AIMING'
         
@@ -271,7 +275,7 @@ while not crashed:
     wall_group.draw(gameDisplay)
     
     pygame.display.update()
-    clock.tick(60)
+    clock.tick(120)
 
 pygame.quit()
 quit()
