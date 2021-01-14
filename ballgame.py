@@ -7,15 +7,19 @@ pygame.init()
 
 display_width = 800
 display_height = 600
-red = pygame.Color(255, 0, 0)
-green = pygame.Color(0,255,0)
+RED = pygame.Color(255, 0, 0)
+GREEN = pygame.Color(0,255,0)
 BLACK = pygame.Color(0,0,0)
-white = pygame.Color(255,255,255)
-blue = pygame.Color(0,0,255)
+WHITE = pygame.Color(255,255,255)
+BLUE = pygame.Color(0,0,255)
 PHASE = "AIMING"
 BALL_LIMIT = 30
-CHICKEN_IMAGE = 'chicksmall.png'
+CHICKEN_IMAGE = pygame.image.load('chicksmall.png')
+CHICKEN_WIDTH = CHICKEN_IMAGE.get_rect().width
+CHICKEN_HEIGHT = CHICKEN_IMAGE.get_rect().height
+CHICKEN_SPACING = 5
 CHICKEN_HP = 50
+WAVE = 0
 
 gameDisplay = pygame.display.set_mode((display_width,display_height))
 pygame.display.set_caption("Chicken Ball Game")
@@ -88,9 +92,9 @@ class BounceSprite(pygame.sprite.Sprite):
 
 
 class Sprite(pygame.sprite.Sprite):
-    def __init__(self, pos, imagefile, hp):
+    def __init__(self, pos, image, hp):
         pygame.sprite.Sprite.__init__(self)
-        self.image = pygame.image.load(imagefile)
+        self.image = image
         self.rect = self.image.get_rect()
         self.rect.center = pos
         self.v = [0,0]
@@ -105,14 +109,8 @@ class Sprite(pygame.sprite.Sprite):
     def pos(self):
         return self.rect.centerx, self.rect.centery
 
-    def move(self):
-        dx, dy = self.v
+    def move(self, dx, dy):
         x, y = self.pos()
-        if x + dx < 0 or x + dx >= display_width:
-            dx = -dx
-        if y + dy < 0 or y + dy >= display_height:
-            dy = -dy
-        self.v = [dx, dy]
         self.set_pos(x + dx, y + dy)
 
 
@@ -161,26 +159,35 @@ class HorizontalWallSprite(pygame.sprite.Sprite):
         self.rect.topleft = pos
 
 
-chicken_pos = (int(display_width * 0.5), int(display_height * 0.5))
-dx = -1
-dy = -1
+def addRandomChicken():
+    chicken_pos = int(100+random.random()*display_width//2), int(100+random.random()*display_height//2)
+    addChicken(chicken_pos)
 
-chickensprite = Sprite(chicken_pos,CHICKEN_IMAGE, CHICKEN_HP)
+def addChicken(pos):
+    chickensprite = Sprite(pos,CHICKEN_IMAGE, CHICKEN_HP)
+    sprite_group.add(chickensprite)
+    bounce_group.add(chickensprite)
+    target_group.add(chickensprite)
+
+
+
+sprite_group = pygame.sprite.Group()
+bounce_group = pygame.sprite.Group()
+ball_group = pygame.sprite.Group()
+target_group = pygame.sprite.Group()
+
+
+chicken_pos = (int(display_width * 0.5), int(display_height * 0.5))
+for i in range(14):
+    x = 50 + i*(CHICKEN_WIDTH + CHICKEN_SPACING)
+    y = 100
+    addChicken((x, y))
+##addChicken(chicken_pos)
+
 
 crashed = False
 buttondown = False
 
-sprite_group = pygame.sprite.Group()
-
-bounce_group = pygame.sprite.Group()
-
-ball_group = pygame.sprite.Group()
-
-target_group = pygame.sprite.Group()
-
-sprite_group.add(chickensprite)
-bounce_group.add(chickensprite)
-target_group.add(chickensprite)
 
 def shootBall(x, y):
     ball = BounceSprite((display_width//2, display_height), 5)
@@ -219,11 +226,7 @@ while not crashed:
             fire = True
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_c:
-                chicken_pos = int(100+random.random()*display_width//2), int(100+random.random()*display_height//2)
-                chickensprite = Sprite(chicken_pos,CHICKEN_IMAGE, CHICKEN_HP)
-                sprite_group.add(chickensprite)
-                bounce_group.add(chickensprite)
-                target_group.add(chickensprite)
+                addRandomChicken()
 
 
     ballchickencollide = pygame.sprite.groupcollide(target_group, ball_group, False, False)
@@ -257,7 +260,7 @@ while not crashed:
         if not sprite.live:
             del sprite
 
-    gameDisplay.fill(blue)
+    gameDisplay.fill(BLUE)
     if PHASE == 'AIMING' and buttondown:
         drawTrackingLine(display_width//2)
     elif PHASE == 'AIMING' and fire:
@@ -269,7 +272,16 @@ while not crashed:
             shootBall(*aim_pos)
             remainingBalls -= 1
     elif PHASE == 'SHOOTING':
+        PHASE = 'ADVANCING'
+        remainingSteps = CHICKEN_HEIGHT
+        WAVE += 1
+    elif PHASE == 'ADVANCING' and remainingSteps > 0:
+        for sprite in target_group:
+            sprite.move(0,2)
+        remainingSteps -= 2
+    elif PHASE == 'ADVANCING':
         PHASE = 'AIMING'
+        
         
     bounce_group.draw(gameDisplay)
     wall_group.draw(gameDisplay)
