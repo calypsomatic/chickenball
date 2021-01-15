@@ -5,8 +5,8 @@ import random
 
 pygame.init()
 
-display_width = 800
-display_height = 600
+
+
 RED = pygame.Color(255, 0, 0)
 GREEN = pygame.Color(0,255,0)
 BLACK = pygame.Color(0,0,0)
@@ -14,14 +14,29 @@ WHITE = pygame.Color(255,255,255)
 BLUE = pygame.Color(0,0,255)
 PHASE = "AIMING"
 BALL_LIMIT = 30
+
+##font = pygame.font.SysFont(None, 48)
+##font_img = font.render("text", True, RED)
+
 CHICKEN_IMAGE = pygame.image.load('chicksmall.png')
 CHICKEN_WIDTH = CHICKEN_IMAGE.get_rect().width
 CHICKEN_HEIGHT = CHICKEN_IMAGE.get_rect().height
 CHICKEN_SPACING = 5
 CHICKEN_HP = 50
+CHICKEN_NUMBER = 8
+
+VW_WIDTH = 40
+HW_HEIGHT = 50
+
+ARENA_WIDTH = CHICKEN_NUMBER*(CHICKEN_WIDTH+CHICKEN_SPACING) + CHICKEN_SPACING
+ARENA_HEIGHT = HW_HEIGHT + 10*CHICKEN_HEIGHT
+
+DISPLAY_WIDTH = ARENA_WIDTH + 2*VW_WIDTH
+DISPLAY_HEIGHT = ARENA_HEIGHT + HW_HEIGHT
+
 WAVE = 0
 
-gameDisplay = pygame.display.set_mode((display_width,display_height))
+gameDisplay = pygame.display.set_mode((DISPLAY_WIDTH,DISPLAY_HEIGHT))
 pygame.display.set_caption("Chicken Ball Game")
 clock = pygame.time.Clock()
 
@@ -57,7 +72,7 @@ class BounceSprite(pygame.sprite.Sprite):
         self.x += dx
         self.y += dy        
         self.set_pos(int(self.x), int(self.y))
-        if self.y > display_height:
+        if self.y > DISPLAY_HEIGHT:
             self.kill()
             self.live = False
 
@@ -96,7 +111,8 @@ class Sprite(pygame.sprite.Sprite):
         pygame.sprite.Sprite.__init__(self)
         self.image = image
         self.rect = self.image.get_rect()
-        self.rect.center = pos
+##        pygame.draw.rect(font_img, BLUE, self.rect, 1)
+        self.rect.topleft = pos
         self.v = [0,0]
         self.speed = 5
         self.hp = hp
@@ -145,7 +161,7 @@ class Sprite(pygame.sprite.Sprite):
 class VerticalWallSprite(pygame.sprite.Sprite):
     def __init__(self, height, pos, color=BLACK):
         pygame.sprite.Sprite.__init__(self)
-        self.image = pygame.Surface((5, height), pygame.SRCALPHA)
+        self.image = pygame.Surface((VW_WIDTH, height), pygame.SRCALPHA)
         self.image.fill(color)
         self.rect = self.image.get_bounding_rect()
         self.rect.topleft = pos
@@ -153,14 +169,14 @@ class VerticalWallSprite(pygame.sprite.Sprite):
 class HorizontalWallSprite(pygame.sprite.Sprite):
     def __init__(self, width, pos, color=BLACK):
         pygame.sprite.Sprite.__init__(self)
-        self.image = pygame.Surface((width, 5), pygame.SRCALPHA)
+        self.image = pygame.Surface((width, HW_HEIGHT), pygame.SRCALPHA)
         self.image.fill(color)
         self.rect = self.image.get_bounding_rect()
         self.rect.topleft = pos
 
 
 def addRandomChicken():
-    chicken_pos = int(100+random.random()*display_width//2), int(100+random.random()*display_height//2)
+    chicken_pos = int(100+random.random()*DISPLAY_WIDTH//2), int(100+random.random()*DISPLAY_HEIGHT//2)
     addChicken(chicken_pos)
 
 def addChicken(pos):
@@ -169,6 +185,11 @@ def addChicken(pos):
     bounce_group.add(chickensprite)
     target_group.add(chickensprite)
 
+def spawnChickens():
+    num = random.randint(1, CHICKEN_NUMBER//2)
+    spots = random.choices(range(CHICKEN_NUMBER),k=num)
+    for i in spots:
+        addChicken((VW_WIDTH + CHICKEN_SPACING + i*(CHICKEN_WIDTH + CHICKEN_SPACING),HW_HEIGHT + CHICKEN_SPACING))
 
 
 sprite_group = pygame.sprite.Group()
@@ -177,28 +198,28 @@ ball_group = pygame.sprite.Group()
 target_group = pygame.sprite.Group()
 
 
-chicken_pos = (int(display_width * 0.5), int(display_height * 0.5))
-for i in range(14):
-    x = 50 + i*(CHICKEN_WIDTH + CHICKEN_SPACING)
-    y = 100
-    addChicken((x, y))
+chicken_pos = (int(DISPLAY_WIDTH * 0.5), int(DISPLAY_HEIGHT * 0.5))
+##for i in range(CHICKEN_NUMBER):
+##    x = VW_WIDTH + CHICKEN_SPACING + i*(CHICKEN_WIDTH + CHICKEN_SPACING)
+##    y = HW_HEIGHT + CHICKEN_SPACING
+##    addChicken((x, y))
 ##addChicken(chicken_pos)
-
+spawnChickens()
 
 crashed = False
 buttondown = False
 
 
 def shootBall(x, y):
-    ball = BounceSprite((display_width//2, display_height), 5)
+    ball = BounceSprite((DISPLAY_WIDTH//2, DISPLAY_HEIGHT), 5)
     ball.aim((x, y))
     bounce_group.add(ball)
     ball_group.add(ball)
     sprite_group.add(ball)
 
-leftwall = VerticalWallSprite(display_height, (0,0))
-topwall = HorizontalWallSprite(display_width, (0,0))
-rightwall = VerticalWallSprite(display_height, (display_width-5,0))
+leftwall = VerticalWallSprite(DISPLAY_HEIGHT, (0,0))
+topwall = HorizontalWallSprite(DISPLAY_WIDTH, (0,0))
+rightwall = VerticalWallSprite(DISPLAY_HEIGHT, (DISPLAY_WIDTH-VW_WIDTH,0))
 
 wall_group = pygame.sprite.Group()
 wall_group.add(leftwall)
@@ -209,7 +230,7 @@ i=0
 
 def drawTrackingLine(from_x):
     mousex, mousey = pygame.mouse.get_pos()
-    pygame.draw.line(gameDisplay,BLACK, (from_x, display_height), (mousex, mousey))
+    pygame.draw.line(gameDisplay,BLACK, (from_x, DISPLAY_HEIGHT), (mousex, mousey))
 
 while not crashed:
     i += 1
@@ -262,7 +283,7 @@ while not crashed:
 
     gameDisplay.fill(BLUE)
     if PHASE == 'AIMING' and buttondown:
-        drawTrackingLine(display_width//2)
+        drawTrackingLine(DISPLAY_WIDTH//2)
     elif PHASE == 'AIMING' and fire:
         PHASE = 'SHOOTING'
         remainingBalls = BALL_LIMIT
@@ -271,15 +292,16 @@ while not crashed:
         if i % 5 == 0:
             shootBall(*aim_pos)
             remainingBalls -= 1
-    elif PHASE == 'SHOOTING':
+    elif PHASE == 'SHOOTING' and len(ball_group) == 0:
         PHASE = 'ADVANCING'
-        remainingSteps = CHICKEN_HEIGHT
+        remainingSteps = CHICKEN_HEIGHT + CHICKEN_SPACING
         WAVE += 1
     elif PHASE == 'ADVANCING' and remainingSteps > 0:
         for sprite in target_group:
             sprite.move(0,2)
         remainingSteps -= 2
     elif PHASE == 'ADVANCING':
+        spawnChickens()
         PHASE = 'AIMING'
         
         
