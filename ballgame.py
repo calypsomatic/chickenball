@@ -15,9 +15,6 @@ BLUE = pygame.Color(0,0,255)
 PHASE = "AIMING"
 BALL_LIMIT = 30
 
-##font = pygame.font.SysFont(None, 48)
-##font_img = font.render("text", True, RED)
-
 CHICKEN_IMAGE = pygame.image.load('chicksmall.png')
 CHICKEN_WIDTH = CHICKEN_IMAGE.get_rect().width
 CHICKEN_HEIGHT = CHICKEN_IMAGE.get_rect().height
@@ -40,6 +37,10 @@ gameDisplay = pygame.display.set_mode((DISPLAY_WIDTH,DISPLAY_HEIGHT))
 pygame.display.set_caption("Chicken Ball Game")
 clock = pygame.time.Clock()
 
+##fonts = pygame.font.get_fonts()
+font = pygame.font.SysFont("garuda", 15)
+
+font_img = font.render("text", True, RED)
 
 class BounceSprite(pygame.sprite.Sprite):
     def __init__(self, pos, radius):
@@ -109,7 +110,7 @@ class BounceSprite(pygame.sprite.Sprite):
 class Sprite(pygame.sprite.Sprite):
     def __init__(self, pos, image, hp):
         pygame.sprite.Sprite.__init__(self)
-        self.image = image
+        self.image = pygame.Surface.copy(image)
         self.rect = self.image.get_rect()
 ##        pygame.draw.rect(font_img, BLUE, self.rect, 1)
         self.rect.topleft = pos
@@ -117,6 +118,14 @@ class Sprite(pygame.sprite.Sprite):
         self.speed = 5
         self.hp = hp
         self.live = True
+        self.display_hp()
+
+    def display_hp(self):
+        self.hp_text = font.render(str(self.hp), True, RED)
+        hp_surf = pygame.Surface((self.hp_text.get_rect().width, self.hp_text.get_rect().height), pygame.SRCALPHA)
+        hp_surf.fill(WHITE)
+        hp_surf.blit(self.hp_text, (0,0))
+        self.image.blit(hp_surf, (self.rect.width//2,0))
 
     def set_pos(self, x, y):
         self.rect.centerx = x
@@ -128,7 +137,6 @@ class Sprite(pygame.sprite.Sprite):
     def move(self, dx, dy):
         x, y = self.pos()
         self.set_pos(x + dx, y + dy)
-
 
     def aim(self, pos):
         x, y = pos
@@ -152,6 +160,7 @@ class Sprite(pygame.sprite.Sprite):
 
     def take_hit(self, hit):
         self.hp = self.hp - hit
+        self.display_hp()
         if self.hp <= 0:
             self.kill()
             self.live = False
@@ -198,12 +207,7 @@ ball_group = pygame.sprite.Group()
 target_group = pygame.sprite.Group()
 
 
-chicken_pos = (int(DISPLAY_WIDTH * 0.5), int(DISPLAY_HEIGHT * 0.5))
-##for i in range(CHICKEN_NUMBER):
-##    x = VW_WIDTH + CHICKEN_SPACING + i*(CHICKEN_WIDTH + CHICKEN_SPACING)
-##    y = HW_HEIGHT + CHICKEN_SPACING
-##    addChicken((x, y))
-##addChicken(chicken_pos)
+##chicken_pos = (int(DISPLAY_WIDTH * 0.5), int(DISPLAY_HEIGHT * 0.5))
 spawnChickens()
 
 crashed = False
@@ -282,6 +286,7 @@ while not crashed:
             del sprite
 
     gameDisplay.fill(BLUE)
+
     if PHASE == 'AIMING' and buttondown:
         drawTrackingLine(DISPLAY_WIDTH//2)
     elif PHASE == 'AIMING' and fire:
