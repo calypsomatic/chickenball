@@ -31,6 +31,8 @@ ARENA_HEIGHT = HW_HEIGHT + 10*CHICKEN_HEIGHT
 DISPLAY_WIDTH = ARENA_WIDTH + 2*VW_WIDTH
 DISPLAY_HEIGHT = ARENA_HEIGHT + HW_HEIGHT
 
+BALL_POS = (DISPLAY_WIDTH//2, DISPLAY_HEIGHT)
+
 WAVE = 0
 
 gameDisplay = pygame.display.set_mode((DISPLAY_WIDTH,DISPLAY_HEIGHT))
@@ -50,7 +52,7 @@ class BounceSprite(pygame.sprite.Sprite):
         self.rect = pygame.Rect(*gameDisplay.get_rect().center, 0,0).inflate(radius*2, radius*2)
         self.rect.center = pos
         self.x, self.y = pos
-        self.v = [-1,-1]
+        self.v = [0,0]
         self.speed = 3
         self.live = True
 
@@ -69,13 +71,15 @@ class BounceSprite(pygame.sprite.Sprite):
         self.v = [self.speed*dx/norm, self.speed*dy/norm]
 
     def move(self):
+        global BALL_POS
         dx, dy = self.v
         self.x += dx
         self.y += dy        
         self.set_pos(int(self.x), int(self.y))
         if self.y > DISPLAY_HEIGHT:
             self.kill()
-            self.live = False
+            self.live =- False
+            BALL_POS = (self.x, DISPLAY_HEIGHT)
 
     def update(self):
         self.move()
@@ -112,7 +116,6 @@ class Sprite(pygame.sprite.Sprite):
         pygame.sprite.Sprite.__init__(self)
         self.image = pygame.Surface.copy(image)
         self.rect = self.image.get_rect()
-##        pygame.draw.rect(font_img, BLUE, self.rect, 1)
         self.rect.topleft = pos
         self.v = [0,0]
         self.speed = 5
@@ -206,8 +209,6 @@ bounce_group = pygame.sprite.Group()
 ball_group = pygame.sprite.Group()
 target_group = pygame.sprite.Group()
 
-
-##chicken_pos = (int(DISPLAY_WIDTH * 0.5), int(DISPLAY_HEIGHT * 0.5))
 spawnChickens()
 
 crashed = False
@@ -215,7 +216,7 @@ buttondown = False
 
 
 def shootBall(x, y):
-    ball = BounceSprite((DISPLAY_WIDTH//2, DISPLAY_HEIGHT), 5)
+    ball = BounceSprite(BALL_POS, 5)
     ball.aim((x, y))
     bounce_group.add(ball)
     ball_group.add(ball)
@@ -236,6 +237,9 @@ def drawTrackingLine(from_x):
     mousex, mousey = pygame.mouse.get_pos()
     pygame.draw.line(gameDisplay,BLACK, (from_x, DISPLAY_HEIGHT), (mousex, mousey))
 
+source_ball = BounceSprite((BALL_POS[0], DISPLAY_HEIGHT - 7), 5)
+wall_group.add(source_ball)
+
 while not crashed:
     i += 1
     fire = False
@@ -244,7 +248,6 @@ while not crashed:
             crashed = True
         if event.type == pygame.MOUSEBUTTONDOWN:
             buttondown = True
-##            mousex, mousey = pygame.mouse.get_pos()
             
         if event.type == pygame.MOUSEBUTTONUP:
             buttondown = False
@@ -257,16 +260,12 @@ while not crashed:
     ballchickencollide = pygame.sprite.groupcollide(target_group, ball_group, False, False)
     for target, balls in ballchickencollide.items():
         for ball in balls:
-##            ball.flee(target.pos())
             ball.bounce(target.rect)
             target.take_hit(1)
-##    if i % 100 == 0:
-##        breakpoint()
 
     leftwallcollide = pygame.sprite.spritecollide(leftwall, bounce_group, False)
     for sprite in leftwallcollide:
         sprite.reverse_x()
-        #breakpoint()
     
     topwallcollide = pygame.sprite.spritecollide(topwall, bounce_group, False)
     for sprite in topwallcollide:
@@ -275,9 +274,6 @@ while not crashed:
     rightwallcollide = pygame.sprite.spritecollide(rightwall, bounce_group, False)
     for sprite in rightwallcollide:
         sprite.reverse_x()
-        #breakpoint()
-        
-
 
     
     sprite_group.update()
@@ -288,9 +284,10 @@ while not crashed:
     gameDisplay.fill(BLUE)
 
     if PHASE == 'AIMING' and buttondown:
-        drawTrackingLine(DISPLAY_WIDTH//2)
+        drawTrackingLine(BALL_POS[0])
     elif PHASE == 'AIMING' and fire:
         PHASE = 'SHOOTING'
+        source_ball.kill()
         remainingBalls = BALL_LIMIT
         aim_pos = pygame.mouse.get_pos()
     if PHASE == 'SHOOTING' and remainingBalls > 0:
@@ -299,6 +296,8 @@ while not crashed:
             remainingBalls -= 1
     elif PHASE == 'SHOOTING' and len(ball_group) == 0:
         PHASE = 'ADVANCING'
+        source_ball = BounceSprite((BALL_POS[0], DISPLAY_HEIGHT - 7), 5)
+        wall_group.add(source_ball)
         remainingSteps = CHICKEN_HEIGHT + CHICKEN_SPACING
         WAVE += 1
     elif PHASE == 'ADVANCING' and remainingSteps > 0:
