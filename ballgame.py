@@ -21,20 +21,20 @@ CHICKEN_IMAGE = pygame.image.load('chicksmall.png')
 CHICKEN_WIDTH = CHICKEN_IMAGE.get_rect().width
 CHICKEN_HEIGHT = CHICKEN_IMAGE.get_rect().height
 CHICKEN_SPACING = 5
-CHICKEN_HP = 50
+CHICKEN_HP = 153
 CHICKEN_NUMBER = 8
 
 # DISPLAY PARAMETERS
 VW_WIDTH = 40
 HW_HEIGHT = 50
 ARENA_WIDTH = CHICKEN_NUMBER*(CHICKEN_WIDTH+CHICKEN_SPACING) + CHICKEN_SPACING
-ARENA_HEIGHT = HW_HEIGHT + 10*CHICKEN_HEIGHT
+ARENA_HEIGHT = HW_HEIGHT + 7*(CHICKEN_HEIGHT+CHICKEN_SPACING)
 DISPLAY_WIDTH = ARENA_WIDTH + 2*VW_WIDTH
 DISPLAY_HEIGHT = ARENA_HEIGHT + HW_HEIGHT
 
 #BALL PARAMETERS
 BALL_POS = (DISPLAY_WIDTH//2, DISPLAY_HEIGHT)
-BALL_LIMIT = 30
+BALL_LIMIT = 66
 BALL_SPEED = 3
 BALL_SIZE = 5
 
@@ -48,7 +48,8 @@ clock = pygame.time.Clock()
 
 #FONTS
 ##fonts = pygame.font.get_fonts()
-hp_font = pygame.font.SysFont("garuda", 15)
+hp_font = pygame.font.SysFont("monospace", 12)
+#hp_font = pygame.font.SysFont("garuda", 15)
 
 
 ## DEFINE SPRITES ##
@@ -124,7 +125,9 @@ class ChickenSprite(pygame.sprite.Sprite):
         self.display_hp()
 
     def display_hp(self):
-        self.hp_text = hp_font.render(str(self.hp), True, RED)
+        hp_str = str(self.hp)
+        spaces = 3 - len(hp_str)
+        self.hp_text = hp_font.render(spaces*' ' + hp_str, True, RED)
         hp_surf = pygame.Surface((self.hp_text.get_rect().width, self.hp_text.get_rect().height), pygame.SRCALPHA)
         hp_surf.fill(WHITE)
         hp_surf.blit(self.hp_text, (0,0))
@@ -162,12 +165,10 @@ class ChickenSprite(pygame.sprite.Sprite):
 ##        self.v = [vx, -vy]
 
     def take_hit(self, hit):
-        print(self.hp, id(self))
         self.hp = self.hp - hit
         self.display_hp()
         if self.hp <= 0:
             self.kill()
-            print(self.hp, id(self))
             self.live = False
 
 
@@ -209,8 +210,9 @@ def addChicken(pos):
 
 def spawnChickens():
     num = random.randint(1, CHICKEN_NUMBER//2)
-    spots = random.choices(range(CHICKEN_NUMBER),k=num)
-##    spots = range(0,CHICKEN_NUMBER,2)
+    all_spots = list(range(CHICKEN_NUMBER))
+    random.shuffle(all_spots)
+    spots = all_spots[:num]
     for i in spots:
         addChicken((VW_WIDTH + CHICKEN_SPACING + i*(CHICKEN_WIDTH + CHICKEN_SPACING),HW_HEIGHT + CHICKEN_SPACING))
 
@@ -331,7 +333,9 @@ while not crashed:
         PHASE = 'AIMING'
         
     # draw sprites #
-    bounce_group.draw(gameDisplay)
+    #bounce_group.draw(gameDisplay)
+    #wall_group.draw(gameDisplay)
+    sprite_group.draw(gameDisplay)
     wall_group.draw(gameDisplay)
     
     pygame.display.update()
