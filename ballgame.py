@@ -2,6 +2,7 @@
 
 import pygame
 import random
+import math
 
 pygame.init()
 
@@ -13,6 +14,7 @@ GREEN = pygame.Color(0,255,0)
 BLACK = pygame.Color(0,0,0)
 WHITE = pygame.Color(255,255,255)
 BLUE = pygame.Color(0,0,255)
+GRAY = pygame.Color(128,128,128)
 
 #CHICKEN PARAMETERS
 CHICKEN_IMAGE = pygame.image.load('chicksmall.png')
@@ -160,10 +162,12 @@ class ChickenSprite(pygame.sprite.Sprite):
 ##        self.v = [vx, -vy]
 
     def take_hit(self, hit):
+        print(self.hp, id(self))
         self.hp = self.hp - hit
         self.display_hp()
         if self.hp <= 0:
             self.kill()
+            print(self.hp, id(self))
             self.live = False
 
 
@@ -206,6 +210,7 @@ def addChicken(pos):
 def spawnChickens():
     num = random.randint(1, CHICKEN_NUMBER//2)
     spots = random.choices(range(CHICKEN_NUMBER),k=num)
+##    spots = range(0,CHICKEN_NUMBER,2)
     for i in spots:
         addChicken((VW_WIDTH + CHICKEN_SPACING + i*(CHICKEN_WIDTH + CHICKEN_SPACING),HW_HEIGHT + CHICKEN_SPACING))
 
@@ -218,7 +223,17 @@ def shootBall(x, y):
 
 def drawTrackingLine(from_x):
     mousex, mousey = pygame.mouse.get_pos()
-    pygame.draw.line(gameDisplay,BLACK, (from_x, DISPLAY_HEIGHT), (mousex, mousey))
+    dx = mousex - from_x
+    dy = DISPLAY_HEIGHT - mousey
+    angle = math.atan2(dy, dx)
+    # prevent flat shooting
+    if  0.25 < angle < math.pi - 0.25 and  5 < mousex < DISPLAY_WIDTH -5 and 5 < mousey < DISPLAY_HEIGHT - 5:
+        pygame.draw.line(gameDisplay,BLACK, (from_x, DISPLAY_HEIGHT), (mousex, mousey), width=2)
+        return True
+    else:
+        pygame.draw.line(gameDisplay,GRAY, (from_x, DISPLAY_HEIGHT), (mousex, mousey))
+        return False
+
 
 ## INITIALIZE SPRITES ##
 leftwall = VerticalWallSprite(DISPLAY_HEIGHT, (0,0))
@@ -288,12 +303,14 @@ while not crashed:
 
     # determine phase and take appropriate action
     if PHASE == 'AIMING' and buttondown:
-        drawTrackingLine(BALL_POS[0])
-    elif PHASE == 'AIMING' and fire:
-        PHASE = 'SHOOTING'
-        source_ball.kill()
-        remainingBalls = BALL_LIMIT
-        aim_pos = pygame.mouse.get_pos()
+        allowShoot = drawTrackingLine(BALL_POS[0])
+    elif PHASE == 'AIMING' and fire and allowShoot:
+        allowShoot = drawTrackingLine(BALL_POS[0])
+        if allowShoot:
+            PHASE = 'SHOOTING'
+            source_ball.kill()
+            remainingBalls = BALL_LIMIT
+            aim_pos = pygame.mouse.get_pos()
     if PHASE == 'SHOOTING' and remainingBalls > 0:
         # space out the balls
         if i % 5 == 0:
