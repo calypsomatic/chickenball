@@ -88,7 +88,8 @@ class BallSprite(pygame.sprite.Sprite):
         if self.y > DISPLAY_HEIGHT:
             self.kill()
             self.live =- False
-            BALL_POS = (self.x, DISPLAY_HEIGHT)
+            if len(ball_group) == 0:
+                BALL_POS = (self.x, DISPLAY_HEIGHT)
 
     def update(self):
         self.move()
