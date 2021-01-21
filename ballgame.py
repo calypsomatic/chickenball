@@ -3,6 +3,7 @@
 import pygame
 import random
 import math
+import time
 
 pygame.init()
 
@@ -21,24 +22,30 @@ CHICKEN_IMAGE = pygame.image.load('chicksmall.png')
 CHICKEN_WIDTH = CHICKEN_IMAGE.get_rect().width
 CHICKEN_HEIGHT = CHICKEN_IMAGE.get_rect().height
 CHICKEN_SPACING = 5
-CHICKEN_HP = 153
+CHICKEN_HP = 35
 CHICKEN_NUMBER = 8
 
 # DISPLAY PARAMETERS
 VW_WIDTH = 40
 HW_HEIGHT = 50
 ARENA_WIDTH = CHICKEN_NUMBER*(CHICKEN_WIDTH+CHICKEN_SPACING) + CHICKEN_SPACING
-ARENA_HEIGHT = HW_HEIGHT + 7*(CHICKEN_HEIGHT+CHICKEN_SPACING)
+ARENA_HEIGHT = HW_HEIGHT + 9*(CHICKEN_HEIGHT+CHICKEN_SPACING)
 DISPLAY_WIDTH = ARENA_WIDTH + 2*VW_WIDTH
 DISPLAY_HEIGHT = ARENA_HEIGHT + HW_HEIGHT
 
 #BALL PARAMETERS
 BALL_POS = (DISPLAY_WIDTH//2, DISPLAY_HEIGHT)
-BALL_LIMIT = 66
-BALL_SPEED = 3
+BALL_LIMIT = 20
+BALL_SPEED = 10
 BALL_SIZE = 5
 
-WAVE = 0
+#SCORE PARAMETERS
+PT_PER_HIT = 10
+PT_PER_CHICKEN = 500
+global score
+score = 0
+
+WAVE = 1
 PHASE = "AIMING"
 
 #INITIALIZE DISPLAY
@@ -49,7 +56,9 @@ clock = pygame.time.Clock()
 #FONTS
 ##fonts = pygame.font.get_fonts()
 hp_font = pygame.font.SysFont("monospace", 12)
-#hp_font = pygame.font.SysFont("garuda", 15)
+score_font = pygame.font.SysFont("monospace", 25)
+display_font = pygame.font.SysFont("monospace", 18)
+lose_font = pygame.font.SysFont("monospace", 50)
 
 
 ## DEFINE SPRITES ##
@@ -166,9 +175,12 @@ class ChickenSprite(pygame.sprite.Sprite):
 ##        self.v = [vx, -vy]
 
     def take_hit(self, hit):
+        global score
+        score += PT_PER_HIT*hit
         self.hp = self.hp - hit
         self.display_hp()
         if self.hp <= 0:
+            score += PT_PER_CHICKEN
             self.kill()
             self.live = False
 
@@ -188,6 +200,32 @@ class HorizontalWallSprite(pygame.sprite.Sprite):
         self.image.fill(color)
         self.rect = self.image.get_bounding_rect()
         self.rect.topleft = pos
+
+    def display_score(self):
+        global score
+        score_str = str(score)
+        zeros = 7 - len(score_str)
+        score_text = score_font.render(zeros*'0' + score_str, True, WHITE)
+        score_surf = pygame.Surface((score_text.get_rect().width, score_text.get_rect().height), pygame.SRCALPHA)
+        score_surf.fill(BLACK)
+        score_surf.blit(score_text, (0,0))
+        self.image.blit(score_surf, (DISPLAY_WIDTH - score_text.get_rect().width - VW_WIDTH,10))
+
+    def display_wave(self, wave):
+        wave_str = 'WAVE: ' + str(wave)
+        wave_text = display_font.render(wave_str, True, WHITE)
+        wave_surf = pygame.Surface((wave_text.get_rect().width, wave_text.get_rect().height), pygame.SRCALPHA)
+        wave_surf.fill(BLACK)
+        wave_surf.blit(wave_text, (0,0))
+        self.image.blit(wave_surf, (VW_WIDTH,10))
+
+    def display_balls(self, balls):
+        ball_str = 'BALLS: ' + str(balls)
+        ball_text = display_font.render(ball_str, True, RED)
+        ball_surf = pygame.Surface((ball_text.get_rect().width, ball_text.get_rect().height), pygame.SRCALPHA)
+        ball_surf.fill(BLACK)
+        ball_surf.blit(ball_text, (0,0))
+        self.image.blit(ball_surf, (190,10))
 
 
 ##def addRandomChicken():
@@ -237,6 +275,20 @@ def drawTrackingLine(from_x):
         pygame.draw.line(gameDisplay,GRAY, (from_x, DISPLAY_HEIGHT), (mousex, mousey))
         return False
 
+def chickenInside(target_group):
+    for chicken in target_group:
+        if chicken.rect.bottom >= DISPLAY_HEIGHT:
+            return True
+    return False
+
+def gameOver():
+    youlose = "GAME OVER"
+    lose_text = lose_font.render(youlose, True, RED)
+    lose_surf = pygame.Surface((lose_text.get_rect().width, lose_text.get_rect().height), pygame.SRCALPHA)
+    lose_surf.fill(BLACK)
+    lose_surf.blit(lose_text, (0,0))
+    gameDisplay.blit(lose_surf, (DISPLAY_WIDTH//2 - lose_text.get_rect().width//2,DISPLAY_HEIGHT//2 - lose_text.get_rect().height))
+
 
 ## INITIALIZE SPRITES ##
 leftwall = VerticalWallSprite(DISPLAY_HEIGHT, (0,0))
@@ -258,6 +310,7 @@ pygame.mouse.set_cursor(*pygame.cursors.diamond)
 i=0
 crashed = False
 buttondown = False
+
 
 ## START GAME ##
 while not crashed:
@@ -324,13 +377,16 @@ while not crashed:
         source_ball = BallSprite((BALL_POS[0], DISPLAY_HEIGHT - 7), BALL_SIZE)
         wall_group.add(source_ball)
         remainingSteps = CHICKEN_HEIGHT + CHICKEN_SPACING
-        WAVE += 1
     elif PHASE == 'ADVANCING' and remainingSteps > 0:
         for sprite in target_group:
             sprite.move(0,2)
         remainingSteps -= 2
     elif PHASE == 'ADVANCING':
+        if chickenInside(target_group):
+            gameOver()
+            break
         spawnChickens()
+        WAVE += 1
         PHASE = 'AIMING'
         
     # draw sprites #
@@ -338,9 +394,15 @@ while not crashed:
     #wall_group.draw(gameDisplay)
     sprite_group.draw(gameDisplay)
     wall_group.draw(gameDisplay)
+    topwall.display_score()
+    topwall.display_wave(WAVE)
+    topwall.display_balls(BALL_LIMIT)
     
     pygame.display.update()
     clock.tick(120)
 
+wall_group.draw(gameDisplay)
+pygame.display.update()
+time.sleep(10)
 pygame.quit()
 quit()
