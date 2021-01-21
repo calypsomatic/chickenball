@@ -22,26 +22,27 @@ CHICKEN_IMAGE = pygame.image.load('chicksmall.png')
 CHICKEN_WIDTH = CHICKEN_IMAGE.get_rect().width
 CHICKEN_HEIGHT = CHICKEN_IMAGE.get_rect().height
 CHICKEN_SPACING = 5
-CHICKEN_HP = 35
+CHICKEN_HP = 1
 CHICKEN_NUMBER = 8
 
 # DISPLAY PARAMETERS
 VW_WIDTH = 40
 HW_HEIGHT = 50
 ARENA_WIDTH = CHICKEN_NUMBER*(CHICKEN_WIDTH+CHICKEN_SPACING) + CHICKEN_SPACING
-ARENA_HEIGHT = HW_HEIGHT + 9*(CHICKEN_HEIGHT+CHICKEN_SPACING)
+ARENA_HEIGHT = 8*(CHICKEN_HEIGHT+CHICKEN_SPACING)
 DISPLAY_WIDTH = ARENA_WIDTH + 2*VW_WIDTH
 DISPLAY_HEIGHT = ARENA_HEIGHT + HW_HEIGHT
+RIGHT_WALL_EDGE = DISPLAY_WIDTH - VW_WIDTH
 
 #BALL PARAMETERS
 BALL_POS = (DISPLAY_WIDTH//2, DISPLAY_HEIGHT)
-BALL_LIMIT = 20
-BALL_SPEED = 10
+BALL_LIMIT = 1
+BALL_SPEED = 4
 BALL_SIZE = 5
 
 #SCORE PARAMETERS
 PT_PER_HIT = 10
-PT_PER_CHICKEN = 500
+PT_PER_CHICKEN = 10*PT_PER_HIT
 global score
 score = 0
 
@@ -96,9 +97,13 @@ class BallSprite(pygame.sprite.Sprite):
         self.set_pos(int(self.x), int(self.y))
         if self.y > DISPLAY_HEIGHT:
             self.kill()
-            self.live =- False
+            self.live = False
             if len(ball_group) == 0:
-                BALL_POS = (self.x, DISPLAY_HEIGHT)
+                BALL_POS = [self.x, DISPLAY_HEIGHT]
+                if BALL_POS[0] < VW_WIDTH + BALL_SIZE:
+                    BALL_POS[0] = VW_WIDTH + BALL_SIZE
+                if BALL_POS[0] > RIGHT_WALL_EDGE - BALL_SIZE:
+                    BALL_POS[0] = RIGHT_WALL_EDGE - BALL_SIZE
 
     def update(self):
         self.move()
@@ -129,7 +134,6 @@ class ChickenSprite(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.topleft = pos
         self.v = [0,0]
-#        self.speed = 5
         self.hp = hp
         self.live = True
         self.display_hp()
@@ -299,9 +303,10 @@ wall_group.add(leftwall)
 wall_group.add(topwall)
 wall_group.add(rightwall)
 
-source_ball = BallSprite((BALL_POS[0], DISPLAY_HEIGHT - 7), BALL_SIZE)
+source_ball = BallSprite((BALL_POS[0], DISPLAY_HEIGHT - 5), BALL_SIZE)
 wall_group.add(source_ball)
 
+CHICKEN_HP = WAVE
 spawnChickens()
 
 ## INITIALIZE VARIABLES ##
@@ -374,7 +379,7 @@ while not crashed:
             remainingBalls -= 1
     elif PHASE == 'SHOOTING' and len(ball_group) == 0:
         PHASE = 'ADVANCING'
-        source_ball = BallSprite((BALL_POS[0], DISPLAY_HEIGHT - 7), BALL_SIZE)
+        source_ball = BallSprite((BALL_POS[0], DISPLAY_HEIGHT - 5), BALL_SIZE)
         wall_group.add(source_ball)
         remainingSteps = CHICKEN_HEIGHT + CHICKEN_SPACING
     elif PHASE == 'ADVANCING' and remainingSteps > 0:
@@ -385,8 +390,12 @@ while not crashed:
         if chickenInside(target_group):
             gameOver()
             break
-        spawnChickens()
         WAVE += 1
+        CHICKEN_HP = WAVE
+        spawnChickens()
+        PT_PER_CHICKEN += 5*PT_PER_HIT
+        if random.random() < .35:
+            BALL_LIMIT += 1
         PHASE = 'AIMING'
         
     # draw sprites #
@@ -403,6 +412,6 @@ while not crashed:
 
 wall_group.draw(gameDisplay)
 pygame.display.update()
-time.sleep(10)
+time.sleep(4)
 pygame.quit()
 quit()
