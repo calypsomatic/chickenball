@@ -16,6 +16,7 @@ BLACK = pygame.Color(0,0,0)
 WHITE = pygame.Color(255,255,255)
 BLUE = pygame.Color(0,0,255)
 GRAY = pygame.Color(128,128,128)
+YELLOW = pygame.Color(255, 255, 0)
 
 #CHICKEN PARAMETERS
 CHICKEN_IMAGE = pygame.image.load('chicksmall.png')
@@ -64,16 +65,17 @@ lose_font = pygame.font.SysFont("monospace", 50)
 
 ## DEFINE SPRITES ##
 class BallSprite(pygame.sprite.Sprite):
-    def __init__(self, pos, radius):
+    def __init__(self, pos, radius, color = RED, bonus = False):
         pygame.sprite.Sprite.__init__(self)
         self.image = pygame.Surface((radius*2, radius*2), pygame.SRCALPHA)
-        pygame.draw.circle(self.image, (255, 0, 0), (radius,radius), radius)
+        pygame.draw.circle(self.image, color, (radius,radius), radius)
         self.rect = pygame.Rect(*gameDisplay.get_rect().center, 0,0).inflate(radius*2, radius*2)
         self.rect.center = pos
         self.x, self.y = pos
         self.v = [0,0]
         self.speed = BALL_SPEED
         self.live = True
+        self.bonus = bonus
 
     def set_pos(self, x, y):
         self.rect.centerx = x
@@ -89,16 +91,16 @@ class BallSprite(pygame.sprite.Sprite):
         norm = (dx**2 + dy**2)**.5
         self.v = [self.speed*dx/norm, self.speed*dy/norm]
 
-    def move(self):
+    def move(self, dx, dy):
         global BALL_POS
-        dx, dy = self.v
+##        dx, dy = self.v
         self.x += dx
         self.y += dy        
         self.set_pos(int(self.x), int(self.y))
         if self.y > DISPLAY_HEIGHT:
             self.kill()
             self.live = False
-            if len(ball_group) == 0:
+            if len(ball_group) == 0 and not self.bonus:
                 BALL_POS = [self.x, DISPLAY_HEIGHT]
                 if BALL_POS[0] < VW_WIDTH + BALL_SIZE:
                     BALL_POS[0] = VW_WIDTH + BALL_SIZE
@@ -106,7 +108,7 @@ class BallSprite(pygame.sprite.Sprite):
                     BALL_POS[0] = RIGHT_WALL_EDGE - BALL_SIZE
 
     def update(self):
-        self.move()
+        self.move(*self.v)
 
     def reverse_x(self):
         vx, vy = self.v
@@ -244,6 +246,11 @@ ball_group = pygame.sprite.Group()
 target_group = pygame.sprite.Group()
 
 ## DEFINE FUNCTIONS ##
+
+def spawnBall(location):
+    ball = BallSprite(location, BALL_SIZE, YELLOW, True)
+    target_group.add(ball)
+    sprite_group.add(ball)    
         
 def addChicken(pos):
     chickensprite = ChickenSprite(pos,CHICKEN_IMAGE, CHICKEN_HP)
@@ -258,6 +265,10 @@ def spawnChickens():
     spots = all_spots[:num]
     for i in spots:
         addChicken((VW_WIDTH + CHICKEN_SPACING + i*(CHICKEN_WIDTH + CHICKEN_SPACING),HW_HEIGHT + CHICKEN_SPACING))
+    if random.random() < .4:
+        spot = all_spots[num]
+        location = (VW_WIDTH + CHICKEN_SPACING + spot*(CHICKEN_WIDTH + CHICKEN_SPACING) + 0.5*CHICKEN_WIDTH,HW_HEIGHT + CHICKEN_SPACING + 0.5*CHICKEN_HEIGHT)
+        spawnBall(location)
 
 def shootBall(x, y):
     ball = BallSprite(BALL_POS, BALL_SIZE)
@@ -335,11 +346,15 @@ while not crashed:
 ##                addRandomChicken()
 
     # DETECT COLLISIONS #
-    ballchickencollide = pygame.sprite.groupcollide(target_group, ball_group, False, False)
-    for target, balls in ballchickencollide.items():
-        for ball in balls:
-            ball.bounce(target.rect)
-            target.take_hit(1)
+    balltargetcollide = pygame.sprite.groupcollide(target_group, ball_group, False, False)
+    for target, balls in balltargetcollide.items():
+        if type(target) ==  BallSprite:
+            target.kill()
+            BALL_LIMIT += 1
+        else:
+            for ball in balls:
+                ball.bounce(target.rect)
+                target.take_hit(1)
 
     leftwallcollide = pygame.sprite.spritecollide(leftwall, bounce_group, False)
     for sprite in leftwallcollide:
@@ -394,8 +409,8 @@ while not crashed:
         CHICKEN_HP = WAVE
         spawnChickens()
         PT_PER_CHICKEN += 5*PT_PER_HIT
-        if random.random() < .35:
-            BALL_LIMIT += 1
+##        if random.random() < .35:
+##            BALL_LIMIT += 1
         PHASE = 'AIMING'
         
     # draw sprites #
