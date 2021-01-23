@@ -64,18 +64,7 @@ lose_font = pygame.font.SysFont("monospace", 50,bold=True)
 
 
 ## DEFINE SPRITES ##
-class BallSprite(pygame.sprite.Sprite):
-    def __init__(self, pos, radius, color = RED, bonus = False):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = pygame.Surface((radius*2, radius*2), pygame.SRCALPHA)
-        pygame.draw.circle(self.image, color, (radius,radius), radius)
-        self.rect = pygame.Rect(*gameDisplay.get_rect().center, 0,0).inflate(radius*2, radius*2)
-        self.rect.center = pos
-        self.x, self.y = pos
-        self.v = [0,0]
-        self.speed = BALL_SPEED
-        self.live = True
-        self.bonus = bonus
+class MobileSprite(pygame.sprite.Sprite):
 
     def set_pos(self, x, y):
         self.rect.centerx = x
@@ -92,21 +81,16 @@ class BallSprite(pygame.sprite.Sprite):
         self.v = [self.speed*dx/norm, self.speed*dy/norm]
 
     def move(self, dx, dy):
-        global BALL_POS
-        self.x += dx
-        self.y += dy        
-        self.set_pos(int(self.x), int(self.y))
-        if self.y > DISPLAY_HEIGHT:
-            self.kill()
-            self.live = False
-            #update where ball is shot from
-            if len(ball_group) == 0 and not self.bonus:
-                BALL_POS = [self.x, DISPLAY_HEIGHT]
-                # avoid getting stuck in corner
-                if BALL_POS[0] < VW_WIDTH + BALL_SIZE:
-                    BALL_POS[0] = VW_WIDTH + BALL_SIZE
-                if BALL_POS[0] > RIGHT_WALL_EDGE - BALL_SIZE:
-                    BALL_POS[0] = RIGHT_WALL_EDGE - BALL_SIZE
+        x, y = self.pos()
+        x += dx
+        y += dy
+        self.set_pos(x, y)
+        if y > DISPLAY_HEIGHT:
+            self.destroy()
+
+    def destroy(self):
+        self.kill()
+        self.live = False
 
     def update(self):
         self.move(*self.v)
@@ -119,6 +103,43 @@ class BallSprite(pygame.sprite.Sprite):
         vx, vy = self.v
         self.v = [vx, -vy]
 
+
+
+class BouncySprite(MobileSprite):
+    def __init__(self, pos, radius, color = RED):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.Surface((radius*2, radius*2), pygame.SRCALPHA)
+        pygame.draw.circle(self.image, color, (radius,radius), radius)
+        self.rect = pygame.Rect(*gameDisplay.get_rect().center, 0,0).inflate(radius*2, radius*2)
+        self.rect.center = pos
+        self.x, self.y = pos
+        self.v = [0,0]
+        self.speed = BALL_SPEED
+        self.live = True
+
+    def set_pos(self, x, y):
+        self.x, self.y = x, y
+        self.rect.centerx = x
+        self.rect.centery = y
+
+    def pos(self):
+        return self.x, self.y
+
+
+
+    def destroy(self):
+        self.kill()
+        self.live = False
+        global BALL_POS
+        if len(ball_group) == 0:
+            BALL_POS = [self.x, DISPLAY_HEIGHT]
+            # avoid getting stuck in corner
+            if BALL_POS[0] < VW_WIDTH + BALL_SIZE:
+                BALL_POS[0] = VW_WIDTH + BALL_SIZE
+            if BALL_POS[0] > RIGHT_WALL_EDGE - BALL_SIZE:
+                BALL_POS[0] = RIGHT_WALL_EDGE - BALL_SIZE        
+
+
     def bounce(self, target_rect):
         top = target_rect.top
         left = target_rect.left
@@ -130,12 +151,13 @@ class BallSprite(pygame.sprite.Sprite):
             self.reverse_y()
 
 
-class ChickenSprite(pygame.sprite.Sprite):
-    def __init__(self, pos, image, hp):
+class TargetSprite(MobileSprite):
+    def __init__(self, pos, hp = 0, image = None):
         pygame.sprite.Sprite.__init__(self)
         self.image = pygame.Surface.copy(image)
         self.rect = self.image.get_rect()
         self.rect.topleft = pos
+##        self.x, self.y = pos
         self.v = [0,0]
         self.hp = hp
         self.live = True
@@ -149,17 +171,7 @@ class ChickenSprite(pygame.sprite.Sprite):
         hp_surf.fill(WHITE)
         hp_surf.blit(self.hp_text, (0,0))
         self.image.blit(hp_surf, (self.rect.width//2,0))
-
-    def set_pos(self, x, y):
-        self.rect.centerx = x
-        self.rect.centery = y
-
-    def pos(self):
-        return self.rect.centerx, self.rect.centery
-
-    def move(self, dx, dy):
-        x, y = self.pos()
-        self.set_pos(x + dx, y + dy)
+        
 
     def take_hit(self, hit):
         global score
@@ -171,6 +183,18 @@ class ChickenSprite(pygame.sprite.Sprite):
             self.kill()
             self.live = False
 
+class BonusBallSprite(TargetSprite):
+    def __init__(self, pos):
+        radius = BALL_SIZE
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.Surface((radius*2, radius*2), pygame.SRCALPHA)
+        pygame.draw.circle(self.image, YELLOW, (radius,radius), radius)
+        self.rect = pygame.Rect(*gameDisplay.get_rect().center, 0,0).inflate(radius*2, radius*2)
+        self.rect.center = pos
+        self.x, self.y = pos
+        self.v = [0,0]
+        self.live = True
+    
 
 class VerticalWallSprite(pygame.sprite.Sprite):
     def __init__(self, height, pos, color=BLACK):
@@ -223,15 +247,14 @@ target_group = pygame.sprite.Group()
 
 ## DEFINE FUNCTIONS ##
 
-def spawnBall(location):
-    ball = BallSprite(location, BALL_SIZE, YELLOW, True)
+def spawnBonusBall(location):
+    ball = BonusBallSprite(location)
     target_group.add(ball)
     sprite_group.add(ball)    
         
 def addChicken(pos):
-    chickensprite = ChickenSprite(pos,CHICKEN_IMAGE, CHICKEN_HP)
+    chickensprite = TargetSprite(pos,CHICKEN_HP, CHICKEN_IMAGE)
     sprite_group.add(chickensprite)
-    bounce_group.add(chickensprite)
     target_group.add(chickensprite)
 
 def spawnChickens():
@@ -244,10 +267,10 @@ def spawnChickens():
     if random.random() < .4:
         spot = all_spots[num]
         location = (VW_WIDTH + CHICKEN_SPACING + spot*(CHICKEN_WIDTH + CHICKEN_SPACING) + 0.5*CHICKEN_WIDTH,HW_HEIGHT + CHICKEN_SPACING + 0.5*CHICKEN_HEIGHT)
-        spawnBall(location)
+        spawnBonusBall(location)
 
 def shootBall(x, y):
-    ball = BallSprite(BALL_POS, BALL_SIZE)
+    ball = BouncySprite(BALL_POS, BALL_SIZE)
     ball.aim((x, y))
     bounce_group.add(ball)
     ball_group.add(ball)
@@ -290,7 +313,7 @@ wall_group.add(leftwall)
 wall_group.add(topwall)
 wall_group.add(rightwall)
 
-source_ball = BallSprite((BALL_POS[0], DISPLAY_HEIGHT - 5), BALL_SIZE)
+source_ball = BouncySprite((BALL_POS[0], DISPLAY_HEIGHT - 5), BALL_SIZE)
 wall_group.add(source_ball)
 
 CHICKEN_HP = WAVE
@@ -321,7 +344,7 @@ while not crashed:
     # DETECT COLLISIONS #
     balltargetcollide = pygame.sprite.groupcollide(target_group, ball_group, False, False)
     for target, balls in balltargetcollide.items():
-        if type(target) ==  BallSprite:
+        if type(target) == BonusBallSprite:
             target.kill()
             BALL_LIMIT += 1
         else:
@@ -367,7 +390,7 @@ while not crashed:
             remainingBalls -= 1
     elif PHASE == 'SHOOTING' and len(ball_group) == 0:
         PHASE = 'ADVANCING'
-        source_ball = BallSprite((BALL_POS[0], DISPLAY_HEIGHT - 5), BALL_SIZE)
+        source_ball = BouncySprite((BALL_POS[0], DISPLAY_HEIGHT - 5), BALL_SIZE)
         wall_group.add(source_ball)
         remainingSteps = CHICKEN_HEIGHT + CHICKEN_SPACING
     elif PHASE == 'ADVANCING' and remainingSteps > 0:
@@ -383,7 +406,7 @@ while not crashed:
         spawnChickens()
         PT_PER_CHICKEN += 5*PT_PER_HIT
         PHASE = 'AIMING'
-        
+
     # draw sprites #
     sprite_group.draw(gameDisplay)
     wall_group.draw(gameDisplay)
