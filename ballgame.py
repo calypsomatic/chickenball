@@ -57,10 +57,10 @@ clock = pygame.time.Clock()
 
 #FONTS
 ##fonts = pygame.font.get_fonts()
-hp_font = pygame.font.SysFont("monospace", 12)
-score_font = pygame.font.SysFont("monospace", 25)
-display_font = pygame.font.SysFont("monospace", 18)
-lose_font = pygame.font.SysFont("monospace", 50)
+hp_font = pygame.font.SysFont("monospace", 12, bold=True)
+score_font = pygame.font.SysFont("monospace", 25, bold=True)
+display_font = pygame.font.SysFont("monospace", 18,bold=True)
+lose_font = pygame.font.SysFont("monospace", 50,bold=True)
 
 
 ## DEFINE SPRITES ##
@@ -93,15 +93,16 @@ class BallSprite(pygame.sprite.Sprite):
 
     def move(self, dx, dy):
         global BALL_POS
-##        dx, dy = self.v
         self.x += dx
         self.y += dy        
         self.set_pos(int(self.x), int(self.y))
         if self.y > DISPLAY_HEIGHT:
             self.kill()
             self.live = False
+            #update where ball is shot from
             if len(ball_group) == 0 and not self.bonus:
                 BALL_POS = [self.x, DISPLAY_HEIGHT]
+                # avoid getting stuck in corner
                 if BALL_POS[0] < VW_WIDTH + BALL_SIZE:
                     BALL_POS[0] = VW_WIDTH + BALL_SIZE
                 if BALL_POS[0] > RIGHT_WALL_EDGE - BALL_SIZE:
@@ -160,26 +161,6 @@ class ChickenSprite(pygame.sprite.Sprite):
         x, y = self.pos()
         self.set_pos(x + dx, y + dy)
 
-##    def aim(self, pos):
-##        x, y = pos
-##        dx = x - self.rect.centerx
-##        dy = y - self.rect.centery
-##        norm = (dx**2 + dy**2)**.5
-##        self.v = [int(self.speed*dx/norm), int(self.speed*dy/norm)]
-##
-##        
-##    def moveToCursor(self):
-##        self.aim(pygame.mouse.get_pos())        
-##        self.move()
-##
-##    def reverse_x(self):
-##        vx, vy = self.v
-##        self.v = [-vx, vy]
-##
-##    def reverse_y(self):
-##        vx, vy = self.v
-##        self.v = [vx, -vy]
-
     def take_hit(self, hit):
         global score
         score += PT_PER_HIT*hit
@@ -232,11 +213,6 @@ class HorizontalWallSprite(pygame.sprite.Sprite):
         ball_surf.fill(BLACK)
         ball_surf.blit(ball_text, (0,0))
         self.image.blit(ball_surf, (190,10))
-
-
-##def addRandomChicken():
-##    chicken_pos = int(100+random.random()*DISPLAY_WIDTH//2), int(100+random.random()*DISPLAY_HEIGHT//2)
-##    addChicken(chicken_pos)
 
 
 ## DEFINE SPRITE GROUPS ##
@@ -341,9 +317,6 @@ while not crashed:
         if event.type == pygame.MOUSEBUTTONUP:
             buttondown = False
             fire = True
-##        if event.type == pygame.KEYDOWN:
-##            if event.key == pygame.K_c:
-##                addRandomChicken()
 
     # DETECT COLLISIONS #
     balltargetcollide = pygame.sprite.groupcollide(target_group, ball_group, False, False)
@@ -409,13 +382,9 @@ while not crashed:
         CHICKEN_HP = WAVE
         spawnChickens()
         PT_PER_CHICKEN += 5*PT_PER_HIT
-##        if random.random() < .35:
-##            BALL_LIMIT += 1
         PHASE = 'AIMING'
         
     # draw sprites #
-    #bounce_group.draw(gameDisplay)
-    #wall_group.draw(gameDisplay)
     sprite_group.draw(gameDisplay)
     wall_group.draw(gameDisplay)
     topwall.display_score()
