@@ -20,6 +20,7 @@ YELLOW = pygame.Color(255, 255, 0)
 
 #CHICKEN PARAMETERS
 CHICKEN_IMAGE = pygame.image.load('chicksmall.png')
+GREEN_CHICKEN_IMAGE = pygame.image.load('chicksmallgreen.png')
 CHICKEN_WIDTH = CHICKEN_IMAGE.get_rect().width
 CHICKEN_HEIGHT = CHICKEN_IMAGE.get_rect().height
 CHICKEN_SPACING = 5
@@ -40,6 +41,12 @@ BALL_POS = (DISPLAY_WIDTH//2, DISPLAY_HEIGHT)
 BALL_LIMIT = 1
 BALL_SPEED = 4
 BALL_SIZE = 5
+
+#Bonus Parameters
+BONUS_BALL_CHANCE = .4
+SLIME_BALL_CHANCE = .25
+BONUS_IN_EFFECT = None
+BONUS_DROPPED = None
 
 #SCORE PARAMETERS
 PT_PER_HIT = 10
@@ -125,8 +132,6 @@ class BouncySprite(MobileSprite):
     def pos(self):
         return self.x, self.y
 
-
-
     def destroy(self):
         self.kill()
         self.live = False
@@ -139,7 +144,6 @@ class BouncySprite(MobileSprite):
             if BALL_POS[0] > RIGHT_WALL_EDGE - BALL_SIZE:
                 BALL_POS[0] = RIGHT_WALL_EDGE - BALL_SIZE        
 
-
     def bounce(self, target_rect):
         top = target_rect.top
         left = target_rect.left
@@ -150,6 +154,21 @@ class BouncySprite(MobileSprite):
         if left < self.x < right:
             self.reverse_y()
 
+
+class SlimeBallSprite(BouncySprite):
+    def __init__(self, pos, radius, color = GREEN):
+        super().__init__(pos, radius, color = GREEN)
+
+    def destroy(self):
+        self.kill()
+        self.live = False
+        ball = BouncySprite(self.pos(), BALL_SIZE)
+        ball.v = self.v
+        ball.reverse_y()
+        bounce_group.add(ball)
+        ball_group.add(ball)
+        sprite_group.add(ball)
+        
 
 class TargetSprite(MobileSprite):
     def __init__(self, pos, hp = 0, image = None):
@@ -182,6 +201,20 @@ class TargetSprite(MobileSprite):
             score += PT_PER_CHICKEN
             self.kill()
             self.live = False
+
+class BonusChickenSprite(TargetSprite):
+    def __init__(self, pos, hp = 0, image = None, bonus = 'SLIME'):
+        super().__init__(pos, hp, image)
+        self.bonus = bonus
+
+    def take_hit(self, hit):
+        super().take_hit(hit)
+        #breakpoint()
+        if not self.live:
+            global BONUS_DROPPED
+            BONUS_DROPPED = self.bonus
+
+
 
 class BonusBallSprite(TargetSprite):
     def __init__(self, pos):
@@ -252,8 +285,11 @@ def spawnBonusBall(location):
     target_group.add(ball)
     sprite_group.add(ball)    
         
-def addChicken(pos):
-    chickensprite = TargetSprite(pos,CHICKEN_HP, CHICKEN_IMAGE)
+def addChicken(pos, bonus = None):
+    if bonus is None:
+        chickensprite = TargetSprite(pos,CHICKEN_HP, CHICKEN_IMAGE)
+    else:
+        chickensprite = BonusChickenSprite(pos,CHICKEN_HP, GREEN_CHICKEN_IMAGE, bonus = bonus)
     sprite_group.add(chickensprite)
     target_group.add(chickensprite)
 
@@ -263,14 +299,22 @@ def spawnChickens():
     random.shuffle(all_spots)
     spots = all_spots[:num]
     for i in spots:
-        addChicken((VW_WIDTH + CHICKEN_SPACING + i*(CHICKEN_WIDTH + CHICKEN_SPACING),HW_HEIGHT + CHICKEN_SPACING))
-    if random.random() < .4:
+        if random.random() < SLIME_BALL_CHANCE:
+            bonus = 'SLIME'
+        else:
+            bonus = None
+        addChicken((VW_WIDTH + CHICKEN_SPACING + i*(CHICKEN_WIDTH + CHICKEN_SPACING),HW_HEIGHT + CHICKEN_SPACING), bonus = bonus)
+    if random.random() < BONUS_BALL_CHANCE:
         spot = all_spots[num]
         location = (VW_WIDTH + CHICKEN_SPACING + spot*(CHICKEN_WIDTH + CHICKEN_SPACING) + 0.5*CHICKEN_WIDTH,HW_HEIGHT + CHICKEN_SPACING + 0.5*CHICKEN_HEIGHT)
         spawnBonusBall(location)
 
+
 def shootBall(x, y):
-    ball = BouncySprite(BALL_POS, BALL_SIZE)
+    if BONUS_IN_EFFECT == 'SLIME':
+        ball = SlimeBallSprite(BALL_POS, BALL_SIZE)
+    else:    
+        ball = BouncySprite(BALL_POS, BALL_SIZE)
     ball.aim((x, y))
     bounce_group.add(ball)
     ball_group.add(ball)
@@ -390,6 +434,13 @@ while not crashed:
             remainingBalls -= 1
     elif PHASE == 'SHOOTING' and len(ball_group) == 0:
         PHASE = 'ADVANCING'
+        if BONUS_DROPPED:
+            BONUS_IN_EFFECT = BONUS_DROPPED
+            BONUS_DROPPED = None
+        else:
+            BONUS_IN_EFFECT = None
+        
+        #TODO: source_ball should be color of bonus ball
         source_ball = BouncySprite((BALL_POS[0], DISPLAY_HEIGHT - 5), BALL_SIZE)
         wall_group.add(source_ball)
         remainingSteps = CHICKEN_HEIGHT + CHICKEN_SPACING
