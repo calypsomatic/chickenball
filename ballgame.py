@@ -50,10 +50,12 @@ BALL_COLORS = {None: RED, 'SLIME': GREEN, 'FIRE': ORANGE, 'DOUBLE': PURPLE}
 
 #Bonus Parameters
 BONUS_BALL_CHANCE = .4
-POWERUP_CHANCE = .1
+POWERUP_CHANCE = .2
 BONUS_IN_EFFECT = None
 BONUS_DROPPED = None
 POWERUPS = ['SLIME', 'FIRE', 'DOUBLE']
+DISPLAY_BONUS_FRAMES = 0
+BONUS_TO_DISPLAY = None
 
 #SCORE PARAMETERS
 PT_PER_HIT = 10
@@ -75,6 +77,7 @@ hp_font = pygame.font.SysFont("monospace", 12, bold=True)
 score_font = pygame.font.SysFont("monospace", 25, bold=True)
 display_font = pygame.font.SysFont("monospace", 18,bold=True)
 lose_font = pygame.font.SysFont("monospace", 50,bold=True)
+powerup_font = pygame.font.SysFont("monospace", 25,bold=True)
 
 
 ## DEFINE SPRITES ##
@@ -236,8 +239,10 @@ class BonusChickenSprite(TargetSprite):
         super().take_hit(hit)
         #breakpoint()
         if not self.live:
-            global BONUS_DROPPED
+            global BONUS_DROPPED, DISPLAY_BONUS_FRAMES, BONUS_TO_DISPLAY
             BONUS_DROPPED = self.bonus
+            DISPLAY_BONUS_FRAMES = 150
+            BONUS_TO_DISPLAY = BONUS_DROPPED
 
 
 
@@ -262,6 +267,14 @@ class VerticalWallSprite(pygame.sprite.Sprite):
         self.rect = self.image.get_bounding_rect()
         self.rect.topleft = pos
 
+    def display_power_balls(self, color):
+        ball_image = pygame.Surface((BALL_SIZE*2, BALL_SIZE*2), pygame.SRCALPHA)
+        pygame.draw.circle(ball_image, color, (BALL_SIZE,BALL_SIZE), BALL_SIZE)
+        self.image.blit(ball_image, (VW_WIDTH//2 - 5, DISPLAY_HEIGHT - 50))
+
+    def erase(self):
+        self.image.fill(BLACK)
+
 class HorizontalWallSprite(pygame.sprite.Sprite):
     def __init__(self, width, pos, color=BLACK):
         pygame.sprite.Sprite.__init__(self)
@@ -271,6 +284,7 @@ class HorizontalWallSprite(pygame.sprite.Sprite):
         self.rect.topleft = pos
 
     def display_score(self):
+        self.image.fill(BLACK)
         global score
         score_str = str(score)
         zeros = 7 - len(score_str)
@@ -291,10 +305,17 @@ class HorizontalWallSprite(pygame.sprite.Sprite):
     def display_balls(self, balls):
         ball_str = 'BALLS: ' + str(balls)
         ball_text = display_font.render(ball_str, True, RED)
-        ball_surf = pygame.Surface((ball_text.get_rect().width, ball_text.get_rect().height), pygame.SRCALPHA)
-        ball_surf.fill(BLACK)
-        ball_surf.blit(ball_text, (0,0))
-        self.image.blit(ball_surf, (190,10))
+        self.ball_surf = pygame.Surface((ball_text.get_rect().width, ball_text.get_rect().height), pygame.SRCALPHA)
+        self.ball_surf.fill(BLACK)
+        self.ball_surf.blit(ball_text, (0,0))
+        self.image.blit(self.ball_surf, (190,10))
+
+    def display_powerup(self, powerup):
+        ball_text = powerup_font.render(powerup + "BALL!!", True, BALL_COLORS[powerup])
+        self.ball_surf = pygame.Surface((ball_text.get_rect().width, ball_text.get_rect().height), pygame.SRCALPHA)
+        self.ball_surf.fill(BLACK)
+        self.ball_surf.blit(ball_text, (0,0))
+        self.image.blit(self.ball_surf, (170,10))
 
 
 ## DEFINE SPRITE GROUPS ##
@@ -460,6 +481,7 @@ while not crashed:
         if allowShoot:
             PHASE = 'SHOOTING'
             source_ball.kill()
+            rightwall.erase()
             remainingBalls = BALL_LIMIT
             aim_pos = pygame.mouse.get_pos()
     if PHASE == 'SHOOTING' and remainingBalls > 0:
@@ -497,7 +519,15 @@ while not crashed:
     wall_group.draw(gameDisplay)
     topwall.display_score()
     topwall.display_wave(WAVE)
-    topwall.display_balls(BALL_LIMIT)
+    if DISPLAY_BONUS_FRAMES > 0:
+        topwall.display_powerup(BONUS_TO_DISPLAY)
+        DISPLAY_BONUS_FRAMES -= 1
+    else:
+        BONUS_TO_DISPLAY = None
+        topwall.display_balls(BALL_LIMIT)
+
+    if BONUS_TO_DISPLAY:
+        rightwall.display_power_balls(BALL_COLORS[BONUS_TO_DISPLAY])
     
     pygame.display.update()
     clock.tick(120)
