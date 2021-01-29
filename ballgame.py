@@ -44,13 +44,13 @@ RIGHT_WALL_EDGE = DISPLAY_WIDTH - VW_WIDTH
 #BALL PARAMETERS
 BALL_POS = (DISPLAY_WIDTH//2, DISPLAY_HEIGHT)
 BALL_LIMIT = 1
-BALL_SPEED = 4
+BALL_SPEED = 4 #Should always be less than BALL_SIZE
 BALL_SIZE = 5
 BALL_COLORS = {None: RED, 'SLIME': GREEN, 'FIRE': ORANGE, 'DOUBLE': PURPLE}
 
 #Bonus Parameters
 BONUS_BALL_CHANCE = .4
-POWERUP_CHANCE = .2
+POWERUP_CHANCE = .15
 BONUS_IN_EFFECT = None
 BONUS_DROPPED = None
 POWERUPS = ['SLIME', 'FIRE', 'DOUBLE']
@@ -162,8 +162,16 @@ class BouncySprite(MobileSprite):
         bottom = target_rect.bottom
         if top < self.y < bottom:
             self.reverse_x()
-        if left < self.x < right:
+        elif left < self.x < right:
             self.reverse_y()
+        else:
+            tcx,tcy = target_rect.center
+            vx, vy = self.v
+            cvx, cvy = tcx - self.x, tcy - self.y
+            dotp = cvx*vx + cvy*vy
+            scale = dotp/(cvx**2 + cvy**2)
+            compx, compy = cvx*scale, cvy*scale
+            self.v = [vx - 2*compx, vy - 2*compy]
 
 
 class SlimeBallSprite(BouncySprite):
