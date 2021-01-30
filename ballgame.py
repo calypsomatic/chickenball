@@ -29,14 +29,14 @@ BONUS_CHICKENS = {None: CHICKEN_IMAGE, 'SLIME': GREEN_CHICKEN_IMAGE, 'FIRE': ORA
 CHICKEN_WIDTH = CHICKEN_IMAGE.get_rect().width
 CHICKEN_HEIGHT = CHICKEN_IMAGE.get_rect().height
 CHICKEN_SPACING = 5
-CHICKEN_HP = 1
+CHICKEN_HP = 2
 CHICKEN_NUMBER = 8
 
 # DISPLAY PARAMETERS
 VW_WIDTH = 40
 HW_HEIGHT = 50
 ARENA_WIDTH = CHICKEN_NUMBER*(CHICKEN_WIDTH+CHICKEN_SPACING) + CHICKEN_SPACING
-ARENA_HEIGHT = 8*(CHICKEN_HEIGHT+CHICKEN_SPACING)
+ARENA_HEIGHT = 4*(CHICKEN_HEIGHT+CHICKEN_SPACING)
 DISPLAY_WIDTH = ARENA_WIDTH + 2*VW_WIDTH
 DISPLAY_HEIGHT = ARENA_HEIGHT + HW_HEIGHT
 RIGHT_WALL_EDGE = DISPLAY_WIDTH - VW_WIDTH
@@ -50,7 +50,7 @@ BALL_COLORS = {None: RED, 'SLIME': GREEN, 'FIRE': ORANGE, 'DOUBLE': PURPLE}
 
 #Bonus Parameters
 BONUS_BALL_CHANCE = .4
-POWERUP_CHANCE = .15
+POWERUP_CHANCE = .12
 BONUS_IN_EFFECT = None
 BONUS_DROPPED = None
 POWERUPS = ['SLIME', 'FIRE', 'DOUBLE']
@@ -164,14 +164,51 @@ class BouncySprite(MobileSprite):
             self.reverse_x()
         elif left < self.x < right:
             self.reverse_y()
+        elif self.x < left and self.y < top:
+            #top left
+            dy = top - self.y
+            dx = left - self.x
+            print("topleft")
+            if dy > dx:
+                self.reverse_y()
+            else:
+                self.reverse_x()
+        elif self.x > right and self.y < top:
+            #top right
+            dy = top - self.y
+            dx = self.x - right
+            print("topright")
+            if dy > dx:
+                self.reverse_y()
+            else:
+                self.reverse_x()
+        elif self.x < left and self.y > bottom:
+            #bottom left
+            dy = self.y - bottom
+            dx = left - self.x
+            print("bottomleft")
+            if dy > dx:
+                self.reverse_y()
+            else:
+                self.reverse_x()
+##        elif self.x > right and self.y > bottom:
         else:
-            tcx,tcy = target_rect.center
-            vx, vy = self.v
-            cvx, cvy = tcx - self.x, tcy - self.y
-            dotp = cvx*vx + cvy*vy
-            scale = dotp/(cvx**2 + cvy**2)
-            compx, compy = cvx*scale, cvy*scale
-            self.v = [vx - 2*compx, vy - 2*compy]
+            #bottom right
+            dy = self.y - bottom
+            dx = self.x - right
+            print("bottomright")
+            if dy > dx:
+                self.reverse_y()
+            else:
+                self.reverse_x()
+            
+##            tcx,tcy = target_rect.center
+##            vx, vy = self.v
+##            cvx, cvy = tcx - self.x, tcy - self.y
+##            dotp = cvx*vx + cvy*vy
+##            scale = dotp/(cvx**2 + cvy**2)
+##            compx, compy = cvx*scale, cvy*scale
+##            self.v = [vx - 2*compx, vy - 2*compy]
 
 
 class SlimeBallSprite(BouncySprite):
@@ -513,9 +550,9 @@ while not crashed:
             sprite.move(0,2)
         remainingSteps -= 2
     elif PHASE == 'ADVANCING':
-        if chickenInside(target_group):
-            gameOver()
-            break
+##        if chickenInside(target_group):
+##            gameOver()
+##            break
         WAVE += 1
         CHICKEN_HP = WAVE
         spawnChickens()
@@ -538,7 +575,7 @@ while not crashed:
         rightwall.display_power_balls(BALL_COLORS[BONUS_TO_DISPLAY])
     
     pygame.display.update()
-    clock.tick(120)
+    clock.tick(30)
 
 wall_group.draw(gameDisplay)
 pygame.display.update()
