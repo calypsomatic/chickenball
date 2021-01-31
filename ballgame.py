@@ -36,7 +36,7 @@ CHICKEN_NUMBER = 8
 VW_WIDTH = 40
 HW_HEIGHT = 50
 ARENA_WIDTH = CHICKEN_NUMBER*(CHICKEN_WIDTH+CHICKEN_SPACING) + CHICKEN_SPACING
-ARENA_HEIGHT = 4*(CHICKEN_HEIGHT+CHICKEN_SPACING)
+ARENA_HEIGHT = 8*(CHICKEN_HEIGHT+CHICKEN_SPACING)
 DISPLAY_WIDTH = ARENA_WIDTH + 2*VW_WIDTH
 DISPLAY_HEIGHT = ARENA_HEIGHT + HW_HEIGHT
 RIGHT_WALL_EDGE = DISPLAY_WIDTH - VW_WIDTH
@@ -160,47 +160,90 @@ class BouncySprite(MobileSprite):
         left = target_rect.left
         right = target_rect.right
         bottom = target_rect.bottom
+        vx, vy = self.v
         if top < self.y < bottom:
             self.reverse_x()
         elif left < self.x < right:
             self.reverse_y()
         elif self.x < left and self.y < top:
             #top left
-            dy = top - self.y
-            dx = left - self.x
-            print("topleft")
-            if dy > dx:
+            if vy > 0:
                 self.reverse_y()
             else:
                 self.reverse_x()
         elif self.x > right and self.y < top:
             #top right
-            dy = top - self.y
-            dx = self.x - right
-            print("topright")
-            if dy > dx:
+            if vy > 0:
                 self.reverse_y()
             else:
                 self.reverse_x()
         elif self.x < left and self.y > bottom:
             #bottom left
-            dy = self.y - bottom
-            dx = left - self.x
-            print("bottomleft")
-            if dy > dx:
+            if vy < 0:
                 self.reverse_y()
             else:
                 self.reverse_x()
-##        elif self.x > right and self.y > bottom:
         else:
             #bottom right
-            dy = self.y - bottom
-            dx = self.x - right
-            print("bottomright")
-            if dy > dx:
+            if vy < 0:
                 self.reverse_y()
             else:
                 self.reverse_x()
+##
+##    def bounce(self, target_rect):
+##        top = target_rect.top
+##        left = target_rect.left
+##        right = target_rect.right
+##        bottom = target_rect.bottom
+##        if top < self.y < bottom:
+##            self.reverse_x()
+##        elif left < self.x < right:
+##            self.reverse_y()
+##        elif self.x < left and self.y < top:
+##            #top left
+##            dy = top - self.y
+##            dx = left - self.x
+##            print("topleft")
+##            if dy > dx:
+##                self.reverse_y()
+##            else:
+##                self.reverse_x()
+##        elif self.x > right and self.y < top:
+##            #top right
+##            dy = top - self.y
+##            dx = self.x - right
+##            print("topright")
+##            if dy > dx:
+##                self.reverse_y()
+##            else:
+##                self.reverse_x()
+##        elif self.x < left and self.y > bottom:
+##            #bottom left
+##            vx, vy = self.v
+##            if vy < 0:
+##                self.reverse_y()
+##                return
+##            dy = self.y - bottom
+##            dx = left - self.x
+##            print("bottomleft")
+##            if dy > dx:
+##                self.reverse_y()
+##            else:
+##                self.reverse_x()
+####        elif self.x > right and self.y > bottom:
+##        else:
+##            #bottom right
+##            vx, vy = self.v
+##            if vy < 0:
+##                self.reverse_y()
+##                return
+##            dy = self.y - bottom
+##            dx = self.x - right
+##            print("bottomright")
+##            if dy > dx:
+##                self.reverse_y()
+##            else:
+##                self.reverse_x()
             
 ##            tcx,tcy = target_rect.center
 ##            vx, vy = self.v
@@ -388,7 +431,8 @@ def spawnChickens():
     num = random.randint(1, CHICKEN_NUMBER//2 - 1)
     all_spots = list(range(CHICKEN_NUMBER))
     random.shuffle(all_spots)
-    spots = all_spots[:num]
+##    spots = all_spots[:num]
+    spots = [0]
     for i in spots:
         if random.random() < POWERUP_CHANCE:
             bonus = random.choice(POWERUPS)
@@ -544,7 +588,7 @@ while not crashed:
         
         source_ball = BouncySprite((BALL_POS[0], DISPLAY_HEIGHT - 5), BALL_SIZE, BALL_COLORS[BONUS_IN_EFFECT])
         wall_group.add(source_ball)
-        remainingSteps = CHICKEN_HEIGHT + CHICKEN_SPACING
+        remainingSteps = CHICKEN_HEIGHT + CHICKEN_SPACING - 2
     elif PHASE == 'ADVANCING' and remainingSteps > 0:
         for sprite in target_group:
             sprite.move(0,2)
@@ -575,7 +619,7 @@ while not crashed:
         rightwall.display_power_balls(BALL_COLORS[BONUS_TO_DISPLAY])
     
     pygame.display.update()
-    clock.tick(30)
+    clock.tick(120)
 
 wall_group.draw(gameDisplay)
 pygame.display.update()
