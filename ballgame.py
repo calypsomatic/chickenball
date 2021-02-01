@@ -28,22 +28,23 @@ PURPLE_CHICKEN_IMAGE = pygame.image.load('chicksmallpurple.png')
 BONUS_CHICKENS = {None: CHICKEN_IMAGE, 'SLIME': GREEN_CHICKEN_IMAGE, 'FIRE': ORANGE_CHICKEN_IMAGE, 'DOUBLE' : PURPLE_CHICKEN_IMAGE}
 CHICKEN_WIDTH = CHICKEN_IMAGE.get_rect().width
 CHICKEN_HEIGHT = CHICKEN_IMAGE.get_rect().height
-CHICKEN_SPACING = 5
+HZ_CHICKEN_SPACING = 5
+VT_CHICKEN_SPACING = 3
 CHICKEN_HP = 2
 CHICKEN_NUMBER = 8
 
 # DISPLAY PARAMETERS
-VW_WIDTH = 40
+VW_WIDTH = 100
 HW_HEIGHT = 50
-ARENA_WIDTH = CHICKEN_NUMBER*(CHICKEN_WIDTH+CHICKEN_SPACING) + CHICKEN_SPACING
-ARENA_HEIGHT = 8*(CHICKEN_HEIGHT+CHICKEN_SPACING)
+ARENA_WIDTH = CHICKEN_NUMBER*(CHICKEN_WIDTH+HZ_CHICKEN_SPACING) + HZ_CHICKEN_SPACING
+ARENA_HEIGHT = 8*(CHICKEN_HEIGHT+VT_CHICKEN_SPACING) + CHICKEN_HEIGHT//2
 DISPLAY_WIDTH = ARENA_WIDTH + 2*VW_WIDTH
 DISPLAY_HEIGHT = ARENA_HEIGHT + HW_HEIGHT
 RIGHT_WALL_EDGE = DISPLAY_WIDTH - VW_WIDTH
 
 #BALL PARAMETERS
 BALL_POS = (DISPLAY_WIDTH//2, DISPLAY_HEIGHT)
-BALL_LIMIT = 1
+BALL_LIMIT = 5
 BALL_SPEED = 4 #Should always be less than BALL_SIZE
 BALL_SIZE = 5
 BALL_COLORS = {None: RED, 'SLIME': GREEN, 'FIRE': ORANGE, 'DOUBLE': PURPLE}
@@ -318,7 +319,18 @@ class TargetSprite(MobileSprite):
             self.kill()
             self.live = False
 
-class BonusChickenSprite(TargetSprite):
+class EnemySprite(TargetSprite):
+
+    def move(self, dx, dy):
+        global chickenInside
+        x, y = self.pos()
+        x += dx
+        y += dy
+        self.set_pos(x, y)
+        if self.rect.bottom >= DISPLAY_HEIGHT:
+            chickenInside = True
+
+class BonusChickenSprite(EnemySprite):
     def __init__(self, pos, hp = 0, image = None, bonus = 'SLIME'):
         super().__init__(pos, hp, image)
         self.bonus = bonus
@@ -356,12 +368,28 @@ class VerticalWallSprite(pygame.sprite.Sprite):
         self.rect.topleft = pos
 
     def display_power_balls(self, color):
-        ball_image = pygame.Surface((BALL_SIZE*2, BALL_SIZE*2), pygame.SRCALPHA)
-        pygame.draw.circle(ball_image, color, (BALL_SIZE,BALL_SIZE), BALL_SIZE)
-        self.image.blit(ball_image, (VW_WIDTH//2 - 5, DISPLAY_HEIGHT - 50))
+        radius = BALL_SIZE*3
+        box_height = radius*13
+        box_width = radius*4
+        bonus_info_image = pygame.Surface((radius*4, box_height), pygame.SRCALPHA)
+        self.display_powerball_empty(bonus_info_image, radius, 1)
+        self.display_powerball_full(bonus_info_image, color, radius, 3)
+        self.display_powerball_selected(bonus_info_image, color, radius, 5)
+        self.image.blit(bonus_info_image, (VW_WIDTH//2 - box_width//2, DISPLAY_HEIGHT - box_height))
 
     def erase(self):
         self.image.fill(BLACK)
+
+    def display_powerball_empty(self, image, radius, offset):
+        pygame.draw.circle(image, WHITE, (radius*2,radius*2*offset), radius, radius//4)
+
+    def display_powerball_full(self, image, color, radius, offset):
+        pygame.draw.circle(image, color, (radius*2,radius*2*offset), radius)
+
+    def display_powerball_selected(self, image, color, radius, offset):
+        pygame.draw.circle(image, RED, (radius*2,radius*2*offset), 6*radius//4, radius//4)
+        pygame.draw.circle(image, color, (radius*2,radius*2*offset), radius)
+
 
 class HorizontalWallSprite(pygame.sprite.Sprite):
     def __init__(self, width, pos, color=BLACK):
@@ -421,7 +449,7 @@ def spawnBonusBall(location):
         
 def addChicken(pos, bonus = None):
     if bonus is None:
-        chickensprite = TargetSprite(pos,CHICKEN_HP, CHICKEN_IMAGE)
+        chickensprite = EnemySprite(pos,CHICKEN_HP, CHICKEN_IMAGE)
     else:
         chickensprite = BonusChickenSprite(pos,2*CHICKEN_HP, BONUS_CHICKENS[bonus], bonus = bonus)
     sprite_group.add(chickensprite)
@@ -431,17 +459,17 @@ def spawnChickens():
     num = random.randint(1, CHICKEN_NUMBER//2 - 1)
     all_spots = list(range(CHICKEN_NUMBER))
     random.shuffle(all_spots)
-##    spots = all_spots[:num]
-    spots = [0]
+    spots = all_spots[:num]
+##    spots = [0]
     for i in spots:
         if random.random() < POWERUP_CHANCE:
             bonus = random.choice(POWERUPS)
         else:
             bonus = None
-        addChicken((VW_WIDTH + CHICKEN_SPACING + i*(CHICKEN_WIDTH + CHICKEN_SPACING),HW_HEIGHT + CHICKEN_SPACING), bonus = bonus)
+        addChicken((VW_WIDTH + HZ_CHICKEN_SPACING + i*(CHICKEN_WIDTH + HZ_CHICKEN_SPACING),HW_HEIGHT + VT_CHICKEN_SPACING), bonus = bonus)
     if random.random() < BONUS_BALL_CHANCE:
         spot = all_spots[num]
-        location = (VW_WIDTH + CHICKEN_SPACING + spot*(CHICKEN_WIDTH + CHICKEN_SPACING) + 0.5*CHICKEN_WIDTH,HW_HEIGHT + CHICKEN_SPACING + 0.5*CHICKEN_HEIGHT)
+        location = (VW_WIDTH + HZ_CHICKEN_SPACING + spot*(CHICKEN_WIDTH + HZ_CHICKEN_SPACING) + 0.5*CHICKEN_WIDTH,HW_HEIGHT + VT_CHICKEN_SPACING + 0.5*CHICKEN_HEIGHT)
         spawnBonusBall(location)
 
 
@@ -474,11 +502,11 @@ def drawTrackingLine(from_x):
         pygame.draw.line(gameDisplay,GRAY, (from_x, DISPLAY_HEIGHT), (mousex, mousey))
         return False
 
-def chickenInside(target_group):
-    for chicken in target_group:
-        if chicken.rect.bottom >= DISPLAY_HEIGHT:
-            return True
-    return False
+##def chickenInside(target_group):
+##    for chicken in target_group:
+##        if chicken.rect.bottom >= DISPLAY_HEIGHT:
+##            return True
+##    return False
 
 def gameOver():
     youlose = "GAME OVER"
@@ -510,7 +538,7 @@ pygame.mouse.set_cursor(*pygame.cursors.diamond)
 i=0
 crashed = False
 buttondown = False
-
+chickenInside = False
 
 ## START GAME ##
 while not crashed:
@@ -588,15 +616,15 @@ while not crashed:
         
         source_ball = BouncySprite((BALL_POS[0], DISPLAY_HEIGHT - 5), BALL_SIZE, BALL_COLORS[BONUS_IN_EFFECT])
         wall_group.add(source_ball)
-        remainingSteps = CHICKEN_HEIGHT + CHICKEN_SPACING - 2
+        remainingSteps = CHICKEN_HEIGHT + VT_CHICKEN_SPACING
     elif PHASE == 'ADVANCING' and remainingSteps > 0:
         for sprite in target_group:
             sprite.move(0,2)
         remainingSteps -= 2
     elif PHASE == 'ADVANCING':
-##        if chickenInside(target_group):
-##            gameOver()
-##            break
+        if chickenInside:
+            gameOver()
+            break
         WAVE += 1
         CHICKEN_HP = WAVE
         spawnChickens()
