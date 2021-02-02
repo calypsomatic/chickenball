@@ -51,7 +51,7 @@ BALL_COLORS = {None: RED, 'SLIME': GREEN, 'FIRE': ORANGE, 'DOUBLE': PURPLE}
 
 #Bonus Parameters
 BONUS_BALL_CHANCE = .4
-POWERUP_CHANCE = .12
+POWERUP_CHANCE = .8
 BONUS_IN_EFFECT = None
 BONUS_DROPPED = None
 POWERUPS = ['SLIME', 'FIRE', 'DOUBLE']
@@ -81,6 +81,23 @@ lose_font = pygame.font.SysFont("monospace", 50,bold=True)
 powerup_font = pygame.font.SysFont("monospace", 25,bold=True)
 
 
+class GameState():
+    def __init__(self):
+        self.powerup_state = {'SLIME': {'available': False, 'selected':False},
+                              'FIRE': {'available': False, 'selected':False},
+                              'DOUBLE': {'available': False, 'selected':False}}
+
+    def set_powerup(self, powerup, key, value):
+        #TODO: Cannot have more than one selected at a time -
+        # enforce
+        self.powerup_state[powerup][key] = value
+
+    def get_selected(self):
+        for pu, state in self.powerup_state.items():
+            if state['selected']:
+                return pu
+        return None
+    
 ## DEFINE SPRITES ##
 class MobileSprite(pygame.sprite.Sprite):
 
@@ -309,7 +326,7 @@ class TargetSprite(MobileSprite):
         self.image.blit(hp_surf, (self.rect.width//2,0))
         
 
-    def take_hit(self, hit):
+    def take_hit(self, hit, gamestate):
         global score
         score += PT_PER_HIT*hit
         self.hp = self.hp - hit
@@ -335,14 +352,14 @@ class BonusChickenSprite(EnemySprite):
         super().__init__(pos, hp, image)
         self.bonus = bonus
 
-    def take_hit(self, hit):
-        super().take_hit(hit)
+    def take_hit(self, hit, gamestate):
+        super().take_hit(hit, gamestate)
         #breakpoint()
         if not self.live:
-            global BONUS_DROPPED, DISPLAY_BONUS_FRAMES, BONUS_TO_DISPLAY
-            BONUS_DROPPED = self.bonus
+            global DISPLAY_BONUS_FRAMES, BONUS_TO_DISPLAY
+            gamestate.set_powerup(self.bonus, 'available', True)
             DISPLAY_BONUS_FRAMES = 150
-            BONUS_TO_DISPLAY = BONUS_DROPPED
+            BONUS_TO_DISPLAY = self.bonus
 
 
 
@@ -367,14 +384,22 @@ class VerticalWallSprite(pygame.sprite.Sprite):
         self.rect = self.image.get_bounding_rect()
         self.rect.topleft = pos
 
-    def display_power_balls(self, color):
+    def display_power_balls(self, gamestate):
+##    def display_power_balls(self, color):
         radius = BALL_SIZE*3
         box_height = radius*13
         box_width = radius*4
         bonus_info_image = pygame.Surface((radius*4, box_height), pygame.SRCALPHA)
-        self.display_powerball_empty(bonus_info_image, radius, 1)
-        self.display_powerball_full(bonus_info_image, color, radius, 3)
-        self.display_powerball_selected(bonus_info_image, color, radius, 5)
+        offset = 1
+        for pu in POWERUPS:
+            if gamestate.powerup_state[pu]['available']:
+                self.display_powerball_full(bonus_info_image, BALL_COLORS[pu], radius, offset)
+            else:
+                self.display_powerball_empty(bonus_info_image, radius, offset)
+            if gamestate.powerup_state[pu]['selected']:
+                self.display_powerball_selected(bonus_info_image, radius, offset)
+            offset += 2        
+        
         self.image.blit(bonus_info_image, (VW_WIDTH//2 - box_width//2, DISPLAY_HEIGHT - box_height))
 
     def erase(self):
@@ -386,9 +411,9 @@ class VerticalWallSprite(pygame.sprite.Sprite):
     def display_powerball_full(self, image, color, radius, offset):
         pygame.draw.circle(image, color, (radius*2,radius*2*offset), radius)
 
-    def display_powerball_selected(self, image, color, radius, offset):
+    def display_powerball_selected(self, image, radius, offset):
         pygame.draw.circle(image, RED, (radius*2,radius*2*offset), 6*radius//4, radius//4)
-        pygame.draw.circle(image, color, (radius*2,radius*2*offset), radius)
+##        pygame.draw.circle(image, color, (radius*2,radius*2*offset), radius)
 
 
 class HorizontalWallSprite(pygame.sprite.Sprite):
@@ -424,7 +449,7 @@ class HorizontalWallSprite(pygame.sprite.Sprite):
         self.ball_surf = pygame.Surface((ball_text.get_rect().width, ball_text.get_rect().height), pygame.SRCALPHA)
         self.ball_surf.fill(BLACK)
         self.ball_surf.blit(ball_text, (0,0))
-        self.image.blit(self.ball_surf, (190,10))
+        self.image.blit(self.ball_surf, (230,10))
 
     def display_powerup(self, powerup):
         ball_text = powerup_font.render(powerup + "BALL!!", True, BALL_COLORS[powerup])
@@ -473,8 +498,8 @@ def spawnChickens():
         spawnBonusBall(location)
 
 
-def shootBall(x, y):
-    global BONUS_IN_EFFECT
+def shootBall(x, y, gamestate):
+    BONUS_IN_EFFECT = gamestate.get_selected()
     if BONUS_IN_EFFECT == 'SLIME':
         ball = SlimeBallSprite(BALL_POS, BALL_SIZE)
     elif BONUS_IN_EFFECT == 'FIRE':
@@ -540,6 +565,8 @@ crashed = False
 buttondown = False
 chickenInside = False
 
+game_state = GameState()
+
 ## START GAME ##
 while not crashed:
     i += 1
@@ -565,9 +592,9 @@ while not crashed:
                 ball.bounce(target.rect)
                 if type(ball) == FireBallSprite:
                     ball.destroy()
-                    target.take_hit(target.hp)
+                    target.take_hit(target.hp, game_state)
                 else:
-                    target.take_hit(ball.damage)
+                    target.take_hit(ball.damage, game_state)
 
     leftwallcollide = pygame.sprite.spritecollide(leftwall, bounce_group, False)
     for sprite in leftwallcollide:
@@ -643,9 +670,9 @@ while not crashed:
         BONUS_TO_DISPLAY = None
         topwall.display_balls(BALL_LIMIT)
 
-    if BONUS_TO_DISPLAY:
-        rightwall.display_power_balls(BALL_COLORS[BONUS_TO_DISPLAY])
-    
+##    if BONUS_TO_DISPLAY:
+##        rightwall.display_power_balls(BALL_COLORS[BONUS_TO_DISPLAY])
+    rightwall.display_power_balls(game_state)
     pygame.display.update()
     clock.tick(120)
 
