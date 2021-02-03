@@ -83,20 +83,35 @@ powerup_font = pygame.font.SysFont("monospace", 25,bold=True)
 
 class GameState():
     def __init__(self):
-        self.powerup_state = {'SLIME': {'available': False, 'selected':False},
-                              'FIRE': {'available': False, 'selected':False},
-                              'DOUBLE': {'available': False, 'selected':False}}
+        self.powerup_state = {'SLIME': False,
+                              'FIRE': False,
+                              'DOUBLE': False}
+        self.selected = None
+        self.ball_limit = BALL_LIMIT
 
-    def set_powerup(self, powerup, key, value):
-        #TODO: Cannot have more than one selected at a time -
-        # enforce
-        self.powerup_state[powerup][key] = value
+    def add_powerup(self, powerup):
+        self.powerup_state[powerup] = True
 
-    def get_selected(self):
-        for pu, state in self.powerup_state.items():
-            if state['selected']:
-                return pu
-        return None
+    def remove_powerup(self, powerup):
+        self.powerup_state[powerup] = False
+
+    def select_powerup(self, powerup):
+        self.selected = powerup
+
+    def create_ball_array(self):
+        if self.selected == 'SLIME':
+            self.ball_array = [SlimeBallSprite(BALL_POS, BALL_SIZE) for _ in range(self.ball_limit)]
+        elif self.selected == 'FIRE':
+            self.ball_array = [BouncySprite(BALL_POS, BALL_SIZE) for _ in range(self.ball_limit-1)] + [FireBallSprite(BALL_POS, BALL_SIZE)]
+        elif self.selected == 'DOUBLE':
+            self.ball_array = [DoubleBallSprite(BALL_POS, BALL_SIZE) for _ in range(self.ball_limit)]
+        else:
+            self.ball_array = [BouncySprite(BALL_POS, BALL_SIZE) for _ in range(self.ball_limit)]
+        self.powerup_state[self.selected] = False
+        self.selected = None
+
+    def next_ball(self):
+        return self.ball_array.pop()
     
 ## DEFINE SPRITES ##
 class MobileSprite(pygame.sprite.Sprite):
@@ -207,70 +222,6 @@ class BouncySprite(MobileSprite):
                 self.reverse_y()
             else:
                 self.reverse_x()
-##
-##    def bounce(self, target_rect):
-##        top = target_rect.top
-##        left = target_rect.left
-##        right = target_rect.right
-##        bottom = target_rect.bottom
-##        if top < self.y < bottom:
-##            self.reverse_x()
-##        elif left < self.x < right:
-##            self.reverse_y()
-##        elif self.x < left and self.y < top:
-##            #top left
-##            dy = top - self.y
-##            dx = left - self.x
-##            print("topleft")
-##            if dy > dx:
-##                self.reverse_y()
-##            else:
-##                self.reverse_x()
-##        elif self.x > right and self.y < top:
-##            #top right
-##            dy = top - self.y
-##            dx = self.x - right
-##            print("topright")
-##            if dy > dx:
-##                self.reverse_y()
-##            else:
-##                self.reverse_x()
-##        elif self.x < left and self.y > bottom:
-##            #bottom left
-##            vx, vy = self.v
-##            if vy < 0:
-##                self.reverse_y()
-##                return
-##            dy = self.y - bottom
-##            dx = left - self.x
-##            print("bottomleft")
-##            if dy > dx:
-##                self.reverse_y()
-##            else:
-##                self.reverse_x()
-####        elif self.x > right and self.y > bottom:
-##        else:
-##            #bottom right
-##            vx, vy = self.v
-##            if vy < 0:
-##                self.reverse_y()
-##                return
-##            dy = self.y - bottom
-##            dx = self.x - right
-##            print("bottomright")
-##            if dy > dx:
-##                self.reverse_y()
-##            else:
-##                self.reverse_x()
-            
-##            tcx,tcy = target_rect.center
-##            vx, vy = self.v
-##            cvx, cvy = tcx - self.x, tcy - self.y
-##            dotp = cvx*vx + cvy*vy
-##            scale = dotp/(cvx**2 + cvy**2)
-##            compx, compy = cvx*scale, cvy*scale
-##            self.v = [vx - 2*compx, vy - 2*compy]
-
 
 class SlimeBallSprite(BouncySprite):
     def __init__(self, pos, radius, color = GREEN):
@@ -326,7 +277,7 @@ class TargetSprite(MobileSprite):
         self.image.blit(hp_surf, (self.rect.width//2,0))
         
 
-    def take_hit(self, hit, gamestate):
+    def take_hit(self, hit, game_state):
         global score
         score += PT_PER_HIT*hit
         self.hp = self.hp - hit
@@ -352,12 +303,12 @@ class BonusChickenSprite(EnemySprite):
         super().__init__(pos, hp, image)
         self.bonus = bonus
 
-    def take_hit(self, hit, gamestate):
-        super().take_hit(hit, gamestate)
-        #breakpoint()
+    def take_hit(self, hit, game_state):
+        super().take_hit(hit, game_state)
         if not self.live:
             global DISPLAY_BONUS_FRAMES, BONUS_TO_DISPLAY
-            gamestate.set_powerup(self.bonus, 'available', True)
+            game_state.add_powerup(self.bonus)
+            game_state.select_powerup(self.bonus)
             DISPLAY_BONUS_FRAMES = 150
             BONUS_TO_DISPLAY = self.bonus
 
@@ -384,19 +335,20 @@ class VerticalWallSprite(pygame.sprite.Sprite):
         self.rect = self.image.get_bounding_rect()
         self.rect.topleft = pos
 
-    def display_power_balls(self, gamestate):
+    def display_power_balls(self, game_state):
 ##    def display_power_balls(self, color):
+        self.erase()
         radius = BALL_SIZE*3
         box_height = radius*13
         box_width = radius*4
         bonus_info_image = pygame.Surface((radius*4, box_height), pygame.SRCALPHA)
         offset = 1
         for pu in POWERUPS:
-            if gamestate.powerup_state[pu]['available']:
+            if game_state.powerup_state[pu]:
                 self.display_powerball_full(bonus_info_image, BALL_COLORS[pu], radius, offset)
             else:
                 self.display_powerball_empty(bonus_info_image, radius, offset)
-            if gamestate.powerup_state[pu]['selected']:
+            if game_state.selected == pu:
                 self.display_powerball_selected(bonus_info_image, radius, offset)
             offset += 2        
         
@@ -413,7 +365,6 @@ class VerticalWallSprite(pygame.sprite.Sprite):
 
     def display_powerball_selected(self, image, radius, offset):
         pygame.draw.circle(image, RED, (radius*2,radius*2*offset), 6*radius//4, radius//4)
-##        pygame.draw.circle(image, color, (radius*2,radius*2*offset), radius)
 
 
 class HorizontalWallSprite(pygame.sprite.Sprite):
@@ -456,7 +407,7 @@ class HorizontalWallSprite(pygame.sprite.Sprite):
         self.ball_surf = pygame.Surface((ball_text.get_rect().width, ball_text.get_rect().height), pygame.SRCALPHA)
         self.ball_surf.fill(BLACK)
         self.ball_surf.blit(ball_text, (0,0))
-        self.image.blit(self.ball_surf, (170,10))
+        self.image.blit(self.ball_surf, (230,10))
 
 
 ## DEFINE SPRITE GROUPS ##
@@ -485,7 +436,6 @@ def spawnChickens():
     all_spots = list(range(CHICKEN_NUMBER))
     random.shuffle(all_spots)
     spots = all_spots[:num]
-##    spots = [0]
     for i in spots:
         if random.random() < POWERUP_CHANCE:
             bonus = random.choice(POWERUPS)
@@ -498,17 +448,8 @@ def spawnChickens():
         spawnBonusBall(location)
 
 
-def shootBall(x, y, gamestate):
-    BONUS_IN_EFFECT = gamestate.get_selected()
-    if BONUS_IN_EFFECT == 'SLIME':
-        ball = SlimeBallSprite(BALL_POS, BALL_SIZE)
-    elif BONUS_IN_EFFECT == 'FIRE':
-        ball = FireBallSprite(BALL_POS, BALL_SIZE)
-        BONUS_IN_EFFECT = None
-    elif BONUS_IN_EFFECT == 'DOUBLE':
-        ball = DoubleBallSprite(BALL_POS, BALL_SIZE)
-    else:    
-        ball = BouncySprite(BALL_POS, BALL_SIZE)
+def shootBall(x, y, game_state):
+    ball = game_state.next_ball()
     ball.aim((x, y))
     bounce_group.add(ball)
     ball_group.add(ball)
@@ -526,12 +467,6 @@ def drawTrackingLine(from_x):
     else:
         pygame.draw.line(gameDisplay,GRAY, (from_x, DISPLAY_HEIGHT), (mousex, mousey))
         return False
-
-##def chickenInside(target_group):
-##    for chicken in target_group:
-##        if chicken.rect.bottom >= DISPLAY_HEIGHT:
-##            return True
-##    return False
 
 def gameOver():
     youlose = "GAME OVER"
@@ -586,7 +521,7 @@ while not crashed:
     for target, balls in balltargetcollide.items():
         if type(target) == BonusBallSprite:
             target.kill()
-            BALL_LIMIT += 1
+            game_state.ball_limit += 1
         else:
             for ball in balls:
                 ball.bounce(target.rect)
@@ -625,14 +560,12 @@ while not crashed:
         if allowShoot:
             PHASE = 'SHOOTING'
             source_ball.kill()
-            rightwall.erase()
-            remainingBalls = BALL_LIMIT
+            game_state.create_ball_array()
             aim_pos = pygame.mouse.get_pos()
-    if PHASE == 'SHOOTING' and remainingBalls > 0:
+    if PHASE == 'SHOOTING' and len(game_state.ball_array) > 0:
         # space out the balls
         if i % 5 == 0:
-            shootBall(*aim_pos)
-            remainingBalls -= 1
+            shootBall(*aim_pos, game_state)
     elif PHASE == 'SHOOTING' and len(ball_group) == 0:
         PHASE = 'ADVANCING'
         if BONUS_DROPPED:
@@ -668,7 +601,7 @@ while not crashed:
         DISPLAY_BONUS_FRAMES -= 1
     else:
         BONUS_TO_DISPLAY = None
-        topwall.display_balls(BALL_LIMIT)
+        topwall.display_balls(game_state.ball_limit)
 
 ##    if BONUS_TO_DISPLAY:
 ##        rightwall.display_power_balls(BALL_COLORS[BONUS_TO_DISPLAY])
