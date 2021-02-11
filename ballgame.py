@@ -98,6 +98,14 @@ class GameState():
     def select_powerup(self, powerup):
         self.selected = powerup
 
+    def toggle_selected(self, powerup):
+        if powerup == self.selected:
+            self.selected = None
+        elif powerup and self.powerup_state[powerup]:
+            self.selected = powerup
+        else:
+            self.selected = None
+
     def create_ball_array(self):
         if self.selected == 'SLIME':
             self.ball_array = [SlimeBallSprite(BALL_POS, BALL_SIZE) for _ in range(self.ball_limit)]
@@ -183,10 +191,10 @@ class BouncySprite(MobileSprite):
         if len(ball_group) == 0:
             BALL_POS = [self.x, DISPLAY_HEIGHT]
             # avoid getting stuck in corner
-            if BALL_POS[0] < VW_WIDTH + BALL_SIZE:
-                BALL_POS[0] = VW_WIDTH + BALL_SIZE
-            if BALL_POS[0] > RIGHT_WALL_EDGE - BALL_SIZE:
-                BALL_POS[0] = RIGHT_WALL_EDGE - BALL_SIZE        
+            if BALL_POS[0] < VW_WIDTH + 2*BALL_SIZE:
+                BALL_POS[0] = VW_WIDTH + 2*BALL_SIZE
+            if BALL_POS[0] > RIGHT_WALL_EDGE - 2*BALL_SIZE:
+                BALL_POS[0] = RIGHT_WALL_EDGE - 2*BALL_SIZE        
 
     def bounce(self, target_rect):
         top = target_rect.top
@@ -334,6 +342,7 @@ class VerticalWallSprite(pygame.sprite.Sprite):
         self.image.fill(color)
         self.rect = self.image.get_bounding_rect()
         self.rect.topleft = pos
+        # determine parameters to display powerups
         self.radius = BALL_SIZE*3
         self.box_height = self.radius*13
         self.box_width = self.radius*4
@@ -347,8 +356,14 @@ class VerticalWallSprite(pygame.sprite.Sprite):
         abs_centers = {pu : (cent[0] + x, cent[1] + y) for pu,cent in self.centers.items()}
         #calculate the ranges within which each powerup can be found, relative to the entire display
         # dictionary of form {powerup: (min x, max x, min y, max y)}
-        ranges = {pu : (cent[0] - self.radius, cent[0] + self.radius, cent[1] - self.radius, cent[1] + self.radius) for pu,cent in abs_centers.items()}
-        print(ranges)
+        self.ranges = {pu : (cent[0] - self.radius, cent[0] + self.radius, cent[1] - self.radius, cent[1] + self.radius) for pu,cent in abs_centers.items()}
+
+    def powerup_at_loc(self, pos):
+        x, y = pos
+        for pu, (x1,x2,y1,y2) in self.ranges.items():
+            if x1 <= x <= x2 and y1 <= y <= y2:
+                return pu
+        return None
 
     def display_power_balls(self, game_state):
         self.erase()
@@ -524,7 +539,11 @@ while not crashed:
             crashed = True
         if event.type == pygame.MOUSEBUTTONDOWN:
             if isInArena(*pygame.mouse.get_pos()):
-                buttondown = True        
+                buttondown = True
+            else:
+                pu = rightwall.powerup_at_loc(pygame.mouse.get_pos())
+                if pu:
+                    game_state.toggle_selected(pu)                 
         if event.type == pygame.MOUSEBUTTONUP:
             if buttondown:
                 fire = True
