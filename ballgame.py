@@ -33,6 +33,13 @@ VT_CHICKEN_SPACING = 3
 CHICKEN_HP = 2
 CHICKEN_NUMBER = 8
 
+#BOSS PARAMETERS
+BEAR_IMAGE = pygame.image.load('bear.jpeg')
+BEAR_WIDTH = BEAR_IMAGE.get_rect().width
+BEAR_HEIGHT = BEAR_IMAGE.get_rect().height
+LAST_BOSS_WAVE = 0
+BOSS_PROBABILITY = 1
+
 # DISPLAY PARAMETERS
 VW_WIDTH = 100
 HW_HEIGHT = 50
@@ -88,6 +95,9 @@ class GameState():
                               'DOUBLE': False}
         self.selected = None
         self.ball_limit = BALL_LIMIT
+        self.last_boss_wave = LAST_BOSS_WAVE
+        self.boss_probability = BOSS_PROBABILITY
+        self.wave = 1
 
     def add_powerup(self, powerup):
         self.powerup_state[powerup] = True
@@ -306,6 +316,10 @@ class EnemySprite(TargetSprite):
         if self.rect.bottom >= DISPLAY_HEIGHT:
             chickenInside = True
 
+class BossSprite(EnemySprite):
+    def __init__(self, pos, hp = 0, image = None):
+        super().__init__(pos, hp, image)
+
 class BonusChickenSprite(EnemySprite):
     def __init__(self, pos, hp = 0, image = None, bonus = 'SLIME'):
         super().__init__(pos, hp, image)
@@ -456,6 +470,19 @@ def addChicken(pos, bonus = None):
     sprite_group.add(chickensprite)
     target_group.add(chickensprite)
 
+def spawnBoss():
+    game_state.last_boss_wave = game_state.wave
+##    bearsprite = BossSprite((VW_WIDTH + ARENA_WIDTH//2 - BEAR_WIDTH//2, HW_HEIGHT + VT_CHICKEN_SPACING),CHICKEN_HP*10, BEAR_IMAGE)
+    bearsprite = BossSprite((VW_WIDTH + ARENA_WIDTH//2 - BEAR_WIDTH//2, -200),CHICKEN_HP*10, BEAR_IMAGE)
+    sprite_group.add(bearsprite)
+    target_group.add(bearsprite)
+
+def spawnEnemies(game_state):
+    if game_state.wave - game_state.last_boss_wave > 1 and random.random() < game_state.boss_probability:
+        spawnBoss()
+    else:
+        spawnChickens()
+
 def spawnChickens():
     num = random.randint(1, CHICKEN_NUMBER//2 - 1)
     all_spots = list(range(CHICKEN_NUMBER))
@@ -517,9 +544,6 @@ wall_group.add(rightwall)
 source_ball = BouncySprite((BALL_POS[0], DISPLAY_HEIGHT - 5), BALL_SIZE)
 wall_group.add(source_ball)
 
-CHICKEN_HP = WAVE
-spawnChickens()
-
 ## INITIALIZE VARIABLES ##
 
 pygame.mouse.set_cursor(*pygame.cursors.diamond)
@@ -529,6 +553,8 @@ buttondown = False
 chickenInside = False
 
 game_state = GameState()
+CHICKEN_HP = game_state.wave
+spawnChickens()
 
 ## START GAME ##
 while not crashed:
@@ -618,9 +644,9 @@ while not crashed:
         if chickenInside:
             gameOver()
             break
-        WAVE += 1
-        CHICKEN_HP = WAVE
-        spawnChickens()
+        game_state.wave += 1
+        CHICKEN_HP = game_state.wave
+        spawnEnemies(game_state)
         PT_PER_CHICKEN += 5*PT_PER_HIT
         PHASE = 'AIMING'
 
@@ -628,7 +654,7 @@ while not crashed:
     sprite_group.draw(gameDisplay)
     wall_group.draw(gameDisplay)
     topwall.display_score()
-    topwall.display_wave(WAVE)
+    topwall.display_wave(game_state.wave)
     if DISPLAY_BONUS_FRAMES > 0:
         topwall.display_powerup(BONUS_TO_DISPLAY)
         DISPLAY_BONUS_FRAMES -= 1
