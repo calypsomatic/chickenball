@@ -39,6 +39,8 @@ BEAR_WIDTH = BEAR_IMAGE.get_rect().width
 BEAR_HEIGHT = BEAR_IMAGE.get_rect().height
 LAST_BOSS_WAVE = 0
 BOSS_PROBABILITY = .9
+#Must be at least ARENA_HEIGHT/CHICKEN_HEIGHT
+MIN_BOSS_INTERVAL = 10
 
 # DISPLAY PARAMETERS
 VW_WIDTH = 100
@@ -58,7 +60,7 @@ BALL_COLORS = {None: RED, 'SLIME': GREEN, 'FIRE': ORANGE, 'DOUBLE': PURPLE}
 
 #Bonus Parameters
 BONUS_BALL_CHANCE = .4
-POWERUP_CHANCE = .8
+POWERUP_CHANCE = .2
 BONUS_IN_EFFECT = None
 BONUS_DROPPED = None
 POWERUPS = ['SLIME', 'FIRE', 'DOUBLE']
@@ -333,6 +335,20 @@ class BossSprite(EnemySprite):
             self.live = False
             game_state.waves_to_wait = 0
 
+class MultiSpriteBoss():
+    def __init__(self, hp = 0, bigimage = None, targetimage = None, numtargets = 4):
+        self.pos = (VW_WIDTH + ARENA_WIDTH//2 - BEAR_WIDTH//2, HW_HEIGHT + VT_CHICKEN_SPACING + CHICKEN_HEIGHT - BEAR_HEIGHT)
+        self.targets = self.make_targets(numtargets, targetimage)
+        self.boss = BossSprite(self.pos,0, bigimage)
+
+    def make_targets(self, numtargets, targetimage):
+        x,y = self.pos
+        return [EnemySprite((x+i*20,y), 10, targetimage) for i in range(numtargets)]
+
+
+
+
+
 class BonusChickenSprite(EnemySprite):
     def __init__(self, pos, hp = 0, image = None, bonus = 'SLIME'):
         super().__init__(pos, hp, image)
@@ -493,7 +509,7 @@ def spawnBoss(game_state):
 
 def spawnEnemies(game_state):
     if game_state.waves_to_wait == 0:
-        if game_state.wave - game_state.last_boss_wave > 4 and random.random() < game_state.boss_probability:
+        if game_state.wave - game_state.last_boss_wave > MIN_BOSS_INTERVAL and random.random() < game_state.boss_probability:
             spawnBoss(game_state)
         else:
             spawnChickens()
