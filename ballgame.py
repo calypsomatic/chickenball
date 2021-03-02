@@ -38,10 +38,12 @@ BEAR_IMAGE = pygame.image.load('bear.jpeg')
 BEAR_WIDTH = BEAR_IMAGE.get_rect().width
 BEAR_HEIGHT = BEAR_IMAGE.get_rect().height
 LAST_BOSS_WAVE = 0
-BOSS_PROBABILITY = .9
+BOSS_PROBABILITY = .5
 #Must be at least ARENA_HEIGHT/CHICKEN_HEIGHT
-MIN_BOSS_INTERVAL = 3
+MIN_BOSS_INTERVAL = 10
 TARGET_IMAGE = pygame.image.load('square.png')
+TARGET_HEIGHT = TARGET_IMAGE.get_rect().height
+TARGET_WIDTH = TARGET_IMAGE.get_rect().width
 
 # DISPLAY PARAMETERS
 VW_WIDTH = 100
@@ -340,6 +342,9 @@ class InvulnerableBossSprite(BossSprite):
     def take_hit(self, hit, game_state):
         pass
 
+    def display_hp(self):
+        pass
+
 class SubEnemySprite(EnemySprite):
     def __init__(self, pos, hp = 0, image = None, parent = None):
         super().__init__(pos, hp, image)
@@ -356,19 +361,28 @@ class SubEnemySprite(EnemySprite):
             self.live = False
             self.parent.check_targets()
 
+    def display_hp(self):
+        hp_str = str(self.hp)
+        spaces = 3 - len(hp_str)
+        self.hp_text = hp_font.render(spaces*' ' + hp_str, True, RED)
+        hp_surf = pygame.Surface((self.hp_text.get_rect().width, self.hp_text.get_rect().height), pygame.SRCALPHA)
+        hp_surf.fill(WHITE)
+        hp_surf.blit(self.hp_text, (0,0))
+        self.image.blit(hp_surf, (0,5))
+
 class MultiSpriteBoss():
     def __init__(self, hp = 0, bigimage = None, targetimage = None, numtargets = 4):
         self.pos = (VW_WIDTH + ARENA_WIDTH//2 - BEAR_WIDTH//2, HW_HEIGHT + VT_CHICKEN_SPACING + CHICKEN_HEIGHT - BEAR_HEIGHT)
-        self.targets = self.make_targets(numtargets, targetimage)
+        self.targets = self.make_targets(numtargets, targetimage, hp//numtargets)
         self.boss = InvulnerableBossSprite(self.pos,0, bigimage)
 
-    def make_targets(self, numtargets, targetimage):
+    def make_targets(self, numtargets, targetimage, targethp):
         x,y = self.pos
-        #TODO make positions less ad hoc
-        return [SubEnemySprite((x+i*40,y-25), 1, targetimage, self) for i in range(numtargets)]
+        EIGHTH_PARENT = BEAR_WIDTH//8
+        HALF_TARGET = TARGET_WIDTH//2
+        return [SubEnemySprite((x+i*EIGHTH_PARENT - HALF_TARGET,y-TARGET_HEIGHT), targethp, targetimage, self) for i in range(1,2*(numtargets),2)]
 
     def destroy(self):
-        #TODO: the rest of it
         self.boss.kill()
         self.boss.live = False
 
@@ -535,11 +549,11 @@ def addChicken(pos, bonus = None):
 
 def spawnBoss(game_state):
     game_state.last_boss_wave = game_state.wave
-    #ToDO clean this up
-    game_state.waves_to_wait = (BEAR_HEIGHT + TARGET_IMAGE.get_rect().height)//CHICKEN_HEIGHT - 1
+    #ToDO clean this up - empirically should subtract 1 when no target images
+    game_state.waves_to_wait = (BEAR_HEIGHT + TARGET_HEIGHT)//CHICKEN_HEIGHT
 ##    bearsprite = BossSprite((VW_WIDTH + ARENA_WIDTH//2 - BEAR_WIDTH//2, HW_HEIGHT + VT_CHICKEN_SPACING),CHICKEN_HP*10, BEAR_IMAGE)
     # bearsprite = BossSprite((VW_WIDTH + ARENA_WIDTH//2 - BEAR_WIDTH//2, HW_HEIGHT + VT_CHICKEN_SPACING + CHICKEN_HEIGHT - BEAR_HEIGHT),CHICKEN_HP*10, BEAR_IMAGE)
-    bearboss = MultiSpriteBoss(0, BEAR_IMAGE, TARGET_IMAGE)
+    bearboss = MultiSpriteBoss(CHICKEN_HP*10, BEAR_IMAGE, TARGET_IMAGE)
     bearboss.add_to_groups([sprite_group,target_group])
     # sprite_group.add(bearsprite)
     # target_group.add(bearsprite)
