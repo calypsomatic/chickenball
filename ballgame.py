@@ -14,11 +14,11 @@ RED = pygame.Color(255, 0, 0)
 GREEN = pygame.Color(0,255,0)
 BLACK = pygame.Color(0,0,0)
 WHITE = pygame.Color(255,255,255)
-BLUE = pygame.Color(0,0,255)
+BLUE = pygame.Color(170,170,255)
 GRAY = pygame.Color(128,128,128)
 YELLOW = pygame.Color(255, 255, 0)
 ORANGE = pygame.Color(255, 128, 0)
-PURPLE = pygame.Color(153, 51, 255)
+PURPLE = pygame.Color(188, 0, 255)
 
 #CHICKEN PARAMETERS
 CHICKEN_IMAGE = pygame.image.load('chicksmall.png')
@@ -63,7 +63,7 @@ BALL_COLORS = {None: RED, 'SLIME': GREEN, 'FIRE': ORANGE, 'DOUBLE': PURPLE}
 
 #Bonus Parameters
 BONUS_BALL_CHANCE = .4
-POWERUP_CHANCE = .2
+POWERUP_CHANCE = .9
 BONUS_IN_EFFECT = None
 BONUS_DROPPED = None
 POWERUPS = ['SLIME', 'FIRE', 'DOUBLE']
