@@ -56,7 +56,7 @@ RIGHT_WALL_EDGE = DISPLAY_WIDTH - VW_WIDTH
 
 #BALL PARAMETERS
 BALL_POS = (DISPLAY_WIDTH//2, DISPLAY_HEIGHT)
-BALL_LIMIT = 5
+BALL_LIMIT = 1
 BALL_SPEED = 4 #Should always be less than BALL_SIZE
 BALL_SIZE = 5
 BALL_COLORS = {None: RED, 'SLIME': GREEN, 'FIRE': ORANGE, 'DOUBLE': PURPLE}
@@ -553,7 +553,7 @@ def spawnBoss(game_state):
     game_state.waves_to_wait = (BEAR_HEIGHT + TARGET_HEIGHT)//CHICKEN_HEIGHT
 ##    bearsprite = BossSprite((VW_WIDTH + ARENA_WIDTH//2 - BEAR_WIDTH//2, HW_HEIGHT + VT_CHICKEN_SPACING),CHICKEN_HP*10, BEAR_IMAGE)
     # bearsprite = BossSprite((VW_WIDTH + ARENA_WIDTH//2 - BEAR_WIDTH//2, HW_HEIGHT + VT_CHICKEN_SPACING + CHICKEN_HEIGHT - BEAR_HEIGHT),CHICKEN_HP*10, BEAR_IMAGE)
-    bearboss = MultiSpriteBoss(CHICKEN_HP*10, BEAR_IMAGE, TARGET_IMAGE)
+    bearboss = MultiSpriteBoss(CHICKEN_HP*5, BEAR_IMAGE, TARGET_IMAGE)
     bearboss.add_to_groups([sprite_group,target_group])
     # sprite_group.add(bearsprite)
     # target_group.add(bearsprite)
