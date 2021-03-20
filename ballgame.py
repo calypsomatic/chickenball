@@ -14,11 +14,11 @@ RED = pygame.Color(255, 0, 0)
 GREEN = pygame.Color(0,255,0)
 BLACK = pygame.Color(0,0,0)
 WHITE = pygame.Color(255,255,255)
-BLUE = pygame.Color(0,0,255)
+BLUE = pygame.Color(170,170,255)
 GRAY = pygame.Color(128,128,128)
 YELLOW = pygame.Color(255, 255, 0)
 ORANGE = pygame.Color(255, 128, 0)
-PURPLE = pygame.Color(153, 51, 255)
+PURPLE = pygame.Color(188, 0, 255)
 
 #CHICKEN PARAMETERS
 CHICKEN_IMAGE = pygame.image.load('chicksmall.png')
@@ -33,6 +33,18 @@ VT_CHICKEN_SPACING = 3
 CHICKEN_HP = 2
 CHICKEN_NUMBER = 8
 
+#BOSS PARAMETERS
+BEAR_IMAGE = pygame.image.load('bear.jpeg')
+BEAR_WIDTH = BEAR_IMAGE.get_rect().width
+BEAR_HEIGHT = BEAR_IMAGE.get_rect().height
+LAST_BOSS_WAVE = 0
+BOSS_PROBABILITY = .5
+#Must be at least ARENA_HEIGHT/CHICKEN_HEIGHT
+MIN_BOSS_INTERVAL = 10
+TARGET_IMAGE = pygame.image.load('square.png')
+TARGET_HEIGHT = TARGET_IMAGE.get_rect().height
+TARGET_WIDTH = TARGET_IMAGE.get_rect().width
+
 # DISPLAY PARAMETERS
 VW_WIDTH = 100
 HW_HEIGHT = 50
@@ -44,14 +56,14 @@ RIGHT_WALL_EDGE = DISPLAY_WIDTH - VW_WIDTH
 
 #BALL PARAMETERS
 BALL_POS = (DISPLAY_WIDTH//2, DISPLAY_HEIGHT)
-BALL_LIMIT = 5
+BALL_LIMIT = 1
 BALL_SPEED = 4 #Should always be less than BALL_SIZE
 BALL_SIZE = 5
 BALL_COLORS = {None: RED, 'SLIME': GREEN, 'FIRE': ORANGE, 'DOUBLE': PURPLE}
 
 #Bonus Parameters
 BONUS_BALL_CHANCE = .4
-POWERUP_CHANCE = .8
+POWERUP_CHANCE = .9
 BONUS_IN_EFFECT = None
 BONUS_DROPPED = None
 POWERUPS = ['SLIME', 'FIRE', 'DOUBLE']
@@ -61,6 +73,7 @@ BONUS_TO_DISPLAY = None
 #SCORE PARAMETERS
 PT_PER_HIT = 10
 PT_PER_CHICKEN = 10*PT_PER_HIT
+PT_PER_BOSS = 100*PT_PER_HIT
 global score
 score = 0
 
@@ -88,6 +101,10 @@ class GameState():
                               'DOUBLE': False}
         self.selected = None
         self.ball_limit = BALL_LIMIT
+        self.last_boss_wave = LAST_BOSS_WAVE
+        self.boss_probability = BOSS_PROBABILITY
+        self.wave = 1
+        self.waves_to_wait = 0
 
     def add_powerup(self, powerup):
         self.powerup_state[powerup] = True
@@ -120,7 +137,7 @@ class GameState():
 
     def next_ball(self):
         return self.ball_array.pop()
-    
+
 ## DEFINE SPRITES ##
 class MobileSprite(pygame.sprite.Sprite):
 
@@ -194,7 +211,7 @@ class BouncySprite(MobileSprite):
             if BALL_POS[0] < VW_WIDTH + 2*BALL_SIZE:
                 BALL_POS[0] = VW_WIDTH + 2*BALL_SIZE
             if BALL_POS[0] > RIGHT_WALL_EDGE - 2*BALL_SIZE:
-                BALL_POS[0] = RIGHT_WALL_EDGE - 2*BALL_SIZE        
+                BALL_POS[0] = RIGHT_WALL_EDGE - 2*BALL_SIZE
 
     def bounce(self, target_rect):
         top = target_rect.top
@@ -283,7 +300,7 @@ class TargetSprite(MobileSprite):
         hp_surf.fill(WHITE)
         hp_surf.blit(self.hp_text, (0,0))
         self.image.blit(hp_surf, (self.rect.width//2,0))
-        
+
 
     def take_hit(self, hit, game_state):
         global score
@@ -305,6 +322,80 @@ class EnemySprite(TargetSprite):
         self.set_pos(x, y)
         if self.rect.bottom >= DISPLAY_HEIGHT:
             chickenInside = True
+
+class BossSprite(EnemySprite):
+    def __init__(self, pos, hp = 0, image = None):
+        super().__init__(pos, hp, image)
+
+    def take_hit(self, hit, game_state):
+        global score
+        score += PT_PER_HIT*hit
+        self.hp = self.hp - hit
+        self.display_hp()
+        if self.hp <= 0:
+            score += PT_PER_BOSS
+            self.kill()
+            self.live = False
+            game_state.waves_to_wait = 0
+
+class InvulnerableBossSprite(BossSprite):
+    def take_hit(self, hit, game_state):
+        pass
+
+    def display_hp(self):
+        pass
+
+class SubEnemySprite(EnemySprite):
+    def __init__(self, pos, hp = 0, image = None, parent = None):
+        super().__init__(pos, hp, image)
+        self.parent = parent
+
+    def take_hit(self, hit, game_state):
+        global score
+        score += PT_PER_HIT*hit
+        self.hp = self.hp - hit
+        self.display_hp()
+        if self.hp <= 0:
+            score += PT_PER_CHICKEN
+            self.kill()
+            self.live = False
+            self.parent.check_targets()
+
+    def display_hp(self):
+        hp_str = str(self.hp)
+        spaces = 3 - len(hp_str)
+        self.hp_text = hp_font.render(spaces*' ' + hp_str, True, RED)
+        hp_surf = pygame.Surface((self.hp_text.get_rect().width, self.hp_text.get_rect().height), pygame.SRCALPHA)
+        hp_surf.fill(WHITE)
+        hp_surf.blit(self.hp_text, (0,0))
+        self.image.blit(hp_surf, (0,5))
+
+class MultiSpriteBoss():
+    def __init__(self, hp = 0, bigimage = None, targetimage = None, numtargets = 4):
+        self.pos = (VW_WIDTH + ARENA_WIDTH//2 - BEAR_WIDTH//2, HW_HEIGHT + VT_CHICKEN_SPACING + CHICKEN_HEIGHT - BEAR_HEIGHT)
+        self.targets = self.make_targets(numtargets, targetimage, hp//numtargets)
+        self.boss = InvulnerableBossSprite(self.pos,0, bigimage)
+
+    def make_targets(self, numtargets, targetimage, targethp):
+        x,y = self.pos
+        EIGHTH_PARENT = BEAR_WIDTH//8
+        HALF_TARGET = TARGET_WIDTH//2
+        return [SubEnemySprite((x+i*EIGHTH_PARENT - HALF_TARGET,y-TARGET_HEIGHT), targethp, targetimage, self) for i in range(1,2*(numtargets),2)]
+
+    def destroy(self):
+        self.boss.kill()
+        self.boss.live = False
+
+    def add_to_groups(self, groups):
+        for group in groups:
+            group.add(self.boss)
+            group.add(self.targets)
+
+    def check_targets(self):
+        if len(list(filter(lambda t : t.live, self.targets))) == 0:
+            self.destroy()
+
+
 
 class BonusChickenSprite(EnemySprite):
     def __init__(self, pos, hp = 0, image = None, bonus = 'SLIME'):
@@ -333,7 +424,7 @@ class BonusBallSprite(TargetSprite):
         self.x, self.y = pos
         self.v = [0,0]
         self.live = True
-    
+
 
 class VerticalWallSprite(pygame.sprite.Sprite):
     def __init__(self, height, pos, color=BLACK):
@@ -375,8 +466,8 @@ class VerticalWallSprite(pygame.sprite.Sprite):
             else:
                 self.display_powerball_empty(bonus_info_surf, center)
             if game_state.selected == pu:
-                self.display_powerball_selected(bonus_info_surf, center)      
-        
+                self.display_powerball_selected(bonus_info_surf, center)
+
         self.image.blit(bonus_info_surf, self.bonus_info_box_topleft)
 
     def erase(self):
@@ -446,8 +537,8 @@ target_group = pygame.sprite.Group()
 def spawnBonusBall(location):
     ball = BonusBallSprite(location)
     target_group.add(ball)
-    sprite_group.add(ball)    
-        
+    sprite_group.add(ball)
+
 def addChicken(pos, bonus = None):
     if bonus is None:
         chickensprite = EnemySprite(pos,CHICKEN_HP, CHICKEN_IMAGE)
@@ -455,6 +546,26 @@ def addChicken(pos, bonus = None):
         chickensprite = BonusChickenSprite(pos,2*CHICKEN_HP, BONUS_CHICKENS[bonus], bonus = bonus)
     sprite_group.add(chickensprite)
     target_group.add(chickensprite)
+
+def spawnBoss(game_state):
+    game_state.last_boss_wave = game_state.wave
+    #ToDO clean this up - empirically should subtract 1 when no target images
+    game_state.waves_to_wait = (BEAR_HEIGHT + TARGET_HEIGHT)//CHICKEN_HEIGHT
+##    bearsprite = BossSprite((VW_WIDTH + ARENA_WIDTH//2 - BEAR_WIDTH//2, HW_HEIGHT + VT_CHICKEN_SPACING),CHICKEN_HP*10, BEAR_IMAGE)
+    # bearsprite = BossSprite((VW_WIDTH + ARENA_WIDTH//2 - BEAR_WIDTH//2, HW_HEIGHT + VT_CHICKEN_SPACING + CHICKEN_HEIGHT - BEAR_HEIGHT),CHICKEN_HP*10, BEAR_IMAGE)
+    bearboss = MultiSpriteBoss(CHICKEN_HP*5, BEAR_IMAGE, TARGET_IMAGE)
+    bearboss.add_to_groups([sprite_group,target_group])
+    # sprite_group.add(bearsprite)
+    # target_group.add(bearsprite)
+
+def spawnEnemies(game_state):
+    if game_state.waves_to_wait == 0:
+        if game_state.wave - game_state.last_boss_wave > MIN_BOSS_INTERVAL and random.random() < game_state.boss_probability:
+            spawnBoss(game_state)
+        else:
+            spawnChickens()
+    else:
+        game_state.waves_to_wait -= 1
 
 def spawnChickens():
     num = random.randint(1, CHICKEN_NUMBER//2 - 1)
@@ -517,9 +628,6 @@ wall_group.add(rightwall)
 source_ball = BouncySprite((BALL_POS[0], DISPLAY_HEIGHT - 5), BALL_SIZE)
 wall_group.add(source_ball)
 
-CHICKEN_HP = WAVE
-spawnChickens()
-
 ## INITIALIZE VARIABLES ##
 
 pygame.mouse.set_cursor(*pygame.cursors.diamond)
@@ -529,6 +637,8 @@ buttondown = False
 chickenInside = False
 
 game_state = GameState()
+CHICKEN_HP = game_state.wave
+spawnChickens()
 
 ## START GAME ##
 while not crashed:
@@ -543,7 +653,7 @@ while not crashed:
             else:
                 pu = rightwall.powerup_at_loc(pygame.mouse.get_pos())
                 if pu:
-                    game_state.toggle_selected(pu)                 
+                    game_state.toggle_selected(pu)
         if event.type == pygame.MOUSEBUTTONUP:
             if buttondown:
                 fire = True
@@ -567,11 +677,11 @@ while not crashed:
     leftwallcollide = pygame.sprite.spritecollide(leftwall, bounce_group, False)
     for sprite in leftwallcollide:
         sprite.reverse_x()
-    
+
     topwallcollide = pygame.sprite.spritecollide(topwall, bounce_group, False)
     for sprite in topwallcollide:
         sprite.reverse_y()
-        
+
     rightwallcollide = pygame.sprite.spritecollide(rightwall, bounce_group, False)
     for sprite in rightwallcollide:
         sprite.reverse_x()
@@ -606,7 +716,7 @@ while not crashed:
             BONUS_DROPPED = None
         else:
             BONUS_IN_EFFECT = None
-        
+
         source_ball = BouncySprite((BALL_POS[0], DISPLAY_HEIGHT - 5), BALL_SIZE, BALL_COLORS[BONUS_IN_EFFECT])
         wall_group.add(source_ball)
         remainingSteps = CHICKEN_HEIGHT + VT_CHICKEN_SPACING
@@ -618,9 +728,9 @@ while not crashed:
         if chickenInside:
             gameOver()
             break
-        WAVE += 1
-        CHICKEN_HP = WAVE
-        spawnChickens()
+        game_state.wave += 1
+        CHICKEN_HP = game_state.wave
+        spawnEnemies(game_state)
         PT_PER_CHICKEN += 5*PT_PER_HIT
         PHASE = 'AIMING'
 
@@ -628,7 +738,7 @@ while not crashed:
     sprite_group.draw(gameDisplay)
     wall_group.draw(gameDisplay)
     topwall.display_score()
-    topwall.display_wave(WAVE)
+    topwall.display_wave(game_state.wave)
     if DISPLAY_BONUS_FRAMES > 0:
         topwall.display_powerup(BONUS_TO_DISPLAY)
         DISPLAY_BONUS_FRAMES -= 1
